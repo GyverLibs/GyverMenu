@@ -23,7 +23,7 @@
 Совместима со всеми платформами
 
 ### Зависимости
-- StringN
+- [StringN](https://github.com/GyverLibs/StringN)
 
 ## Содержание
 - [Использование](#usage)
