@@ -150,6 +150,7 @@ class Builder {
                 break;
 
             case Action::Set:
+            case Action::Right:
                 if (cb) cb();
                 return true;
 
