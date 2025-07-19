@@ -1,7 +1,9 @@
 #pragma once
 #include "./utils.h"
 
+#ifndef GM_MAX_DEPTH
 #define GM_MAX_DEPTH 5
+#endif
 
 namespace gm {
 
