@@ -18,8 +18,8 @@ class Builder {
         None,
         Refresh,
         Set,
-        Decr,
-        Incr,
+        SetDown,
+        SetUp,
         Left,
         Right,
     };
@@ -221,7 +221,7 @@ class Builder {
                 change();
                 break;
 
-            case Action::Incr:
+            case Action::SetUp:
             case Action::Right:
                 if (!*var) {
                     *var = true;
@@ -230,7 +230,7 @@ class Builder {
                 }
                 break;
 
-            case Action::Decr:
+            case Action::SetDown:
             case Action::Left:
                 if (*var) {
                     *var = false;
@@ -277,7 +277,7 @@ class Builder {
                 render = true;
                 break;
 
-            case Action::Incr:
+            case Action::SetUp:
             case Action::Right:
                 if (*var < mutil::countSub(opts, ';') - 1) {
                     ++*var;
@@ -286,7 +286,7 @@ class Builder {
                 }
                 break;
 
-            case Action::Decr:
+            case Action::SetDown:
             case Action::Left:
                 if (*var) {
                     --*var;
@@ -344,7 +344,7 @@ class Builder {
                 render = true;
                 break;
 
-            case Action::Incr:
+            case Action::SetUp:
             case Action::Right:
                 if (*var < mutil::countSub(tabs, ';') - 1) {
                     ++*var;
@@ -353,7 +353,7 @@ class Builder {
                 }
                 break;
 
-            case Action::Decr:
+            case Action::SetDown:
             case Action::Left:
                 if (*var) {
                     --*var;
@@ -427,8 +427,8 @@ class Builder {
     void refresh() {
         switch (_action) {
             case Action::Set:
-            case Action::Incr:
-            case Action::Decr:
+            case Action::SetUp:
+            case Action::SetDown:
             case Action::Right:
             case Action::Left:
                 _refresh = true;
@@ -478,8 +478,8 @@ class Builder {
     Action getAction() {
         switch (_action) {
             case Action::Set:
-            case Action::Incr:
-            case Action::Decr:
+            case Action::SetUp:
+            case Action::SetDown:
             case Action::Left:
             case Action::Right:
                 if (menu.isChosen()) return _action;
@@ -556,7 +556,7 @@ class Builder {
                 render = true;
                 break;
 
-            case Action::Incr:
+            case Action::SetUp:
             case Action::Right:
                 if (*var < maxv) {
                     *var += step;
@@ -566,7 +566,7 @@ class Builder {
                 }
                 break;
 
-            case Action::Decr:
+            case Action::SetDown:
             case Action::Left:
                 if (*var > minv) {
                     *var -= step;

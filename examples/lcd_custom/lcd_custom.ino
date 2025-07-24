@@ -48,7 +48,7 @@ void MySlider(gm::Builder& b, const char* label, uint8_t* var, void (*cb)(uint8_
             render = true;
             break;
 
-        case gm::Builder::Action::Incr:
+        case gm::Builder::Action::SetUp:
         case gm::Builder::Action::Right:
             if (*var < 5) {
                 ++*var;
@@ -58,7 +58,7 @@ void MySlider(gm::Builder& b, const char* label, uint8_t* var, void (*cb)(uint8_
             }
             break;
 
-        case gm::Builder::Action::Decr:
+        case gm::Builder::Action::SetDown:
         case gm::Builder::Action::Left:
             if (*var) {
                 --*var;
@@ -101,7 +101,7 @@ bool MySwitch(gm::Builder& b, const char* label, bool* var, void (*cb)(uint8_t) 
             b.change();
             break;
 
-        case gm::Builder::Action::Incr:
+        case gm::Builder::Action::SetUp:
         case gm::Builder::Action::Right:
             if (!*var) {
                 *var = true;
@@ -110,7 +110,7 @@ bool MySwitch(gm::Builder& b, const char* label, bool* var, void (*cb)(uint8_t) 
             }
             break;
 
-        case gm::Builder::Action::Decr:
+        case gm::Builder::Action::SetDown:
         case gm::Builder::Action::Left:
             if (*var) {
                 *var = false;

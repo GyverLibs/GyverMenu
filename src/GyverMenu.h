@@ -58,12 +58,12 @@ class GyverMenu {
 
     // кнопка вверх
     void up() {
-        _menu.active ? _action(gm::Builder::Action::Incr) : _scroll(true);
+        _menu.active ? _action(gm::Builder::Action::SetUp) : _scroll(true);
     }
 
     // кнопка вниз
     void down() {
-        _menu.active ? _action(gm::Builder::Action::Decr) : _scroll(false);
+        _menu.active ? _action(gm::Builder::Action::SetDown) : _scroll(false);
     }
 
     // уменьшить напрямую
