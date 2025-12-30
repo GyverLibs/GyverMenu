@@ -86,6 +86,11 @@ class GyverMenu {
         _fastCursor = fast;
     }
 
+    // получить текущий номер виджета
+    uint8_t getWidgetIndex() {
+        return _menu.getWidgetIndex();
+    }
+
    private:
     gm::Menu _menu;
     gm::Builder::BuildCb _build_cb = nullptr;
