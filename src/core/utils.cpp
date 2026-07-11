@@ -42,6 +42,9 @@ uint8_t strlenU(const char* str, uint8_t* letters, int8_t maxlen) {
     return len;
 }
 
-void _dummyRender(const char* str, size_t len) {}
+void _dummyRender(const char* str, size_t len) {
+    (void)str;
+    (void)len;
+}
 
 }  // namespace mutil

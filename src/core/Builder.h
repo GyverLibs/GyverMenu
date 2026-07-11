@@ -536,7 +536,7 @@ class Builder {
     bool _value(const __FlashStringHelper* label, T* var, T minv, T maxv, T step, uint8_t dec, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(unit, unit_s);
-        return _value<T>(label_s, var, minv, maxv, step, dec, unit, cb);
+        return _value<T>(label_s, var, minv, maxv, step, dec, unit_s, cb);
     }
 #endif
 
@@ -558,9 +558,9 @@ class Builder {
 
             case Action::SetUp:
             case Action::Right:
-                if (*var < maxv) {
-                    *var += step;
-                    if (*var > maxv) *var = maxv;
+                if (step > 0 && *var < maxv) {
+                    T delta = maxv - *var;
+                    *var = (delta < step) ? maxv : *var + step;
                     render = changed = true;
                     change();
                 }
@@ -568,9 +568,9 @@ class Builder {
 
             case Action::SetDown:
             case Action::Left:
-                if (*var > minv) {
-                    *var -= step;
-                    if (*var < minv) *var = minv;
+                if (step > 0 && *var > minv) {
+                    T delta = *var - minv;
+                    *var = (delta < step) ? minv : *var - step;
                     render = changed = true;
                     change();
                 }
