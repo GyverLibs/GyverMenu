@@ -87,6 +87,9 @@ void setFullRefresh(bool full);
 
 // включить быстрый курсор - рендерить только курсор при смене строки (умолч. true)
 void setFastCursor(bool fast);
+
+// получить текущий номер виджета
+uint8_t getWidgetIndex();
 ```
 
 ### gm::Builder
