@@ -533,10 +533,10 @@ class Builder {
     void* _targetVar = nullptr;
     Action _action;
     int8_t _targetRow;
+    uint8_t _nextPageId;
     bool _refresh = false;
     bool _changed = false;
     bool _achieved = false;
-    uint8_t _nextPageId;
 
     void _init() {
         _refresh = _changed = false;
