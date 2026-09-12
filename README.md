@@ -96,15 +96,23 @@ uint8_t getWidgetIndex();
 #### Страница
 ```cpp
 // начать страницу (подменю)
+bool PageBegin(const __FlashStringHelper* label); // автоматический ID
 bool PageBegin(uint8_t id, const __FlashStringHelper* label);
+bool PageBegin(const char* label); // автоматический ID
 bool PageBegin(uint8_t id, const char* label);
 
 // закончить страницу (вызывать внутри условия по PageBegin). back - выводить кнопку "назад"
 void PageEnd(bool back = true);
 
 // страница с коллбэком (вместо PageBegin-PageEnd). back - выводить кнопку "назад"
-void Page(uint8_t id, const __FlashStringHelper* label, void (*page)(Builder& b), bool back = true);
-void Page(uint8_t id, const char* label, void (*page)(Builder& b), bool back = true);
+template <typename PageCb> // автоматический ID
+void Page(const __FlashStringHelper* label, const PageCb& page, bool back = true);
+template <typename PageCb>
+void Page(uint8_t id, const __FlashStringHelper* label, const PageCb& page, bool back = true);
+template <typename PageCb> // автоматический ID
+void Page(const char* label, const PageCb& page, bool back = true);
+template <typename PageCb>
+void Page(uint8_t id, const char* label, const PageCb& page, bool back = true);
 ```
 
 #### Виджеты
@@ -169,6 +177,9 @@ Action getAction();
 
 // поднять флаг изменения (влияет на wasSet())
 void change();
+
+// получить новый id для Page
+uint8_t nextId();
 
 // печатать в onPrint
 void menu.print(char c);

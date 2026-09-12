@@ -60,11 +60,21 @@ class Builder {
 #ifndef GM_NO_PAGES
 // =================== PAGE ===================
 #ifdef ARDUINO
+    bool PageBegin(const __FlashStringHelper* label) {
+        GM_READ_PGM(label, label_s);
+        return PageBegin(label_s);
+    }
+
     bool PageBegin(uint8_t id, const __FlashStringHelper* label) {
         GM_READ_PGM(label, label_s);
         return PageBegin(id, label_s);
     }
+
 #endif
+    // начать страницу (подменю) с автоматическим id
+    bool PageBegin(const char* label) {
+        return PageBegin(nextId(), label);
+    }
 
     // начать страницу (подменю)
     bool PageBegin(uint8_t id, const char* label) {
@@ -116,13 +126,26 @@ class Builder {
     }
 
 #ifdef ARDUINO
-    void Page(uint8_t id, const __FlashStringHelper* label, void (*page)(Builder& b), bool back = true) {
+    template <typename PageCb>
+    void Page(const __FlashStringHelper* label, const PageCb& page, bool back = true) {
+        GM_READ_PGM(label, label_s);
+        Page(label_s, page, back);
+    }
+
+    template <typename PageCb>
+    void Page(uint8_t id, const __FlashStringHelper* label, const PageCb& page, bool back = true) {
         GM_READ_PGM(label, label_s);
         Page(id, label_s, page, back);
     }
 #endif
+    // Захват внешних переменных для лямбда-функции элемента Page
+    template <typename PageCb>
+    void Page(const char* label, const PageCb& page, bool back = true) {
+        Page(nextId(), label, page, back);
+    }
 
-    void Page(uint8_t id, const char* label, void (*page)(Builder& b), bool back = true) {
+    template <typename PageCb>
+    void Page(uint8_t id, const char* label, const PageCb& page, bool back = true) {
         if (PageBegin(id, label)) {
             page(*this);
             PageEnd(back);
@@ -499,6 +522,11 @@ class Builder {
         _changed = true;
     }
 
+    // получить новый id для Page
+    uint8_t nextId() {
+        return _nextPageId++;
+    }
+
     Menu& menu;
 
    private:
@@ -508,12 +536,14 @@ class Builder {
     bool _refresh = false;
     bool _changed = false;
     bool _achieved = false;
+    uint8_t _nextPageId;
 
     void _init() {
         _refresh = _changed = false;
         _achieved = menu.openRoot();
         _targetVar = nullptr;
         _targetRow = -1;
+        _nextPageId = 1;
     }
     void _build(BuildCb cb) {
         cb(*this);
