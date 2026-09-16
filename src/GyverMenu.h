@@ -9,19 +9,36 @@ class GyverMenu {
         _menu.rows = rows;
     }
 
+    // изменить размер меню и вернуться в корень
+    void resize(uint8_t cols, uint8_t rows) {
+        _menu.cols = cols;
+        _menu.rows = rows;
+        _menu.home();
+    }
+
     // подключить рендер вида void(const char* str, size_t len). Придёт nullptr после окончания вывода
     void onPrint(gm::Menu::PrintCb cb) {
         _menu.printer = cb;
     }
 
-    // подключить установку курсора вида uint8_t(uint8_t row, bool state)
+    // установить позицию вывода void(uint8_t col, uint8_t row)
     void onCursor(gm::Menu::CursorCb cb) {
         _menu.cursor = cb;
+    }
+
+    // оформить состояние строки void(uint8_t row, bool selected, bool editing)
+    void onState(gm::Menu::StateCb cb) {
+        _menu.state = cb;
     }
 
     // подключить билдер вида void(gm::Builder& b)
     void onBuild(gm::Builder::BuildCb cb) {
         _build_cb = cb;
+    }
+
+    // размер маркера, сдвигает меню вправо (умолч. 1)
+    void setMarkerSize(bool size) {
+        _menu.markerSize = size;
     }
 
     // установить текст кнопки "назад"
@@ -30,7 +47,7 @@ class GyverMenu {
     }
 
     // обновить строку с переменной
-    void update(void* var) {
+    void update(const void* var) {
         if (_build_cb) gm::Builder(_menu).buildUpdate(_build_cb, var);
     }
 
@@ -76,14 +93,24 @@ class GyverMenu {
         _action(gm::Builder::Action::Right);
     }
 
-    // обновлять экран полностью, например для вывода в консоль (умолч. false)
-    void setFullRefresh(bool full) {
-        _fullRefresh = full;
+    // установить режим обновления
+    void setRefreshMode(gm::RefreshMode mode) {
+        _menu.updateMode = mode;
     }
 
-    // включить быстрый курсор - рендерить только курсор при смене строки (умолч. true)
-    void setFastCursor(bool fast) {
-        _fastCursor = fast;
+    // обновлять экран полностью
+    void setRefreshFull() {
+        _menu.updateMode = gm::RefreshMode::Full;
+    }
+
+    // обновлять изменённые строки целиком
+    void setRefreshRow() {
+        _menu.updateMode = gm::RefreshMode::Row;
+    }
+
+    // обновлять только изменяемую часть, если это возможно
+    void setRefreshPart() {
+        _menu.updateMode = gm::RefreshMode::Part;
     }
 
     // получить текущий номер виджета
@@ -91,21 +118,61 @@ class GyverMenu {
         return _menu.getWidgetIndex();
     }
 
+    // находится ли текущий виджет в режиме редактирования
+    bool isEditing() const {
+        return _menu.active;
+    }
+
+    // выйти из режима редактирования и обновить экран
+    void cancelEdit() {
+        if (!_menu.active || !_build_cb) return;
+        _menu.active = 0;
+
+        if (_menu.useFull()) {
+            refresh();
+        } else {
+            gm::Builder b(_menu);
+            b.buildRow(_build_cb, _menu.row());
+            _menu.endRender();
+        }
+    }
+
+    // установить символ внутреннего маркера (умолч. '>')
+    void setMarker(char symb) {
+        _menu.marker = symb;
+    }
+
+    // получить символ внутреннего маркера
+    char getMarker() const {
+        return _menu.marker;
+    }
+
+    // обновлять экран полностью, например для вывода в консоль (умолч. false)
+    void setFullRefresh(bool full) __attribute__((deprecated("Use setRefreshMode() instead."))) {
+        _menu.updateMode = full ? gm::RefreshMode::Full : gm::RefreshMode::Row;
+    }
+
+    // включить быстрый курсор - рендерить только курсор при смене строки (умолч. true)
+    void setFastCursor(bool fast) __attribute__((deprecated("Use setRefreshMode() instead."))) {
+        _menu.updateMode = fast ? gm::RefreshMode::Part : gm::RefreshMode::Row;
+    }
+
+    // MARK: private
    private:
     gm::Menu _menu;
     gm::Builder::BuildCb _build_cb = nullptr;
-    bool _fullRefresh = false;
-    bool _fastCursor = true;
 
+    // обработать действие текущего виджета
     void _action(gm::Builder::Action action) {
         if (!_build_cb) return;
 
         gm::Builder b(_menu);
-        b.buildAction(_build_cb, action, _fullRefresh);
+        b.buildAction(_build_cb, action, _menu.useFull());
         if (b.isRefresh()) b.buildRefresh(_build_cb);  // + end render
         else _menu.endRender();
     }
 
+    // переместить выбранную строку и обновить экран по текущему режиму
     void _scroll(bool up) {
         if (!_build_cb) return;
 
@@ -114,19 +181,24 @@ class GyverMenu {
         if (_menu.move(up)) {
             refresh();
         } else if (prow != _menu.row()) {
-            if (_fullRefresh) {
-                refresh();
-            } else {
-                if (_fastCursor) {
+            switch (_menu.updateMode) {
+                case gm::RefreshMode::Part:
                     _menu.setCursor(prow, false);
                     _menu.setCursor(_menu.row(), true);
-                } else {
+                    break;
+
+                case gm::RefreshMode::Row: {
                     gm::Builder b(_menu);
                     b.buildRow(_build_cb, prow);
                     b.buildRow(_build_cb, _menu.row());
-                }
-                _menu.endRender();
+                } break;
+
+                case gm::RefreshMode::Full:
+                    refresh();
+                    return;
             }
+
+            _menu.endRender();
         }
     }
 };

@@ -34,7 +34,7 @@ uButton down(2);
 GyverMenu menu(20, 4);
 
 void MySlider(gm::Builder& b, const char* label, uint8_t* var, void (*cb)(uint8_t) = nullptr) {
-    if (!b.menu.beginWidget()) return;
+    if (!b.beginWidget()) return;
 
     bool render = false;
 
@@ -71,11 +71,7 @@ void MySlider(gm::Builder& b, const char* label, uint8_t* var, void (*cb)(uint8_
         default: break;
     }
 
-    if (render && b.beginRender()) {
-        b.menu.print(label);
-        if (b.menu.isActive()) b.menu.print(':');
-        b.menu.pad(b.menu.left - 7);
-
+    if (render && b.beginRender(var, label) && b.prepareRight(7)) {
         b.menu.print('[');
         for (uint8_t i = 0; i < 5; i++) {
             b.menu.print(i < *var ? '=' : ' ');
@@ -84,8 +80,8 @@ void MySlider(gm::Builder& b, const char* label, uint8_t* var, void (*cb)(uint8_
     }
 }
 
-bool MySwitch(gm::Builder& b, const char* label, bool* var, void (*cb)(uint8_t) = nullptr) {
-    if (!b.menu.beginWidget()) return false;
+bool MySwitch(gm::Builder& b, const char* label, bool* var, void (*cb)(bool) = nullptr) {
+    if (!b.beginWidget()) return false;
 
     bool changed = false;
     bool render = false;
@@ -124,9 +120,7 @@ bool MySwitch(gm::Builder& b, const char* label, bool* var, void (*cb)(uint8_t) 
 
     if (changed && cb) cb(*var);
 
-    if (render && b.beginRender()) {
-        b.menu.print(label);
-        b.menu.pad(b.menu.left - 2);
+    if (render && b.beginRender(var, label) && b.prepareRight(2)) {
         if (*var) b.menu.print(1), b.menu.print(2);
         else b.menu.print(2), b.menu.print(3);
     }
@@ -153,10 +147,11 @@ void setup() {
     menu.onPrint([](const char* str, size_t len) {
         if (str) lcd.Print::write(str, len);
     });
-    menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-        lcd.setCursor(0, row);
-        lcd.print(chosen && !active ? '>' : ' ');
-        return 1;
+    menu.onCursor([](uint8_t col, uint8_t row) {
+        lcd.setCursor(col, row);
+    });
+    menu.onState([](uint8_t row, bool chosen, bool active) {
+        lcd.print(chosen && !active ? menu.getMarker() : ' ');
     });
 
     menu.onBuild([](gm::Builder& b) {

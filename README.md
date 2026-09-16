@@ -13,11 +13,11 @@
 - Удобный API для навигации любым количеством кнопок/джойстиком/энкодером
 - Вывод на любой дисплей или в монитор порта
 - Выравнивание значений по правому краю с поддержкой кириллицы
-- 9 встроенных виджетов
+- Набор встроенных виджетов
 - Создание своих виджетов
-- Механизм обновления виджетов
-- Оптимизация количества перерисовок экрана (настраивается)
-- Из коробки это текстовое меню, но можно сделать свои виджеты для графического дисплея
+- Механизм обновления значений виджетов на экране
+- Оптимизация количества перерисовок экрана: полный экран / только строка / только изменяемое
+- Из коробки это текстовое меню, но можно делать свои виджеты для графического дисплея
 
 https://github.com/user-attachments/assets/41910bcf-d537-4f18-a999-8ff6d2c00438
 
@@ -30,12 +30,16 @@ https://github.com/user-attachments/assets/41910bcf-d537-4f18-a999-8ff6d2c00438
 - [StringN](https://github.com/GyverLibs/StringN)
 
 ## Содержание
+- [Описание классов](#api)
 - [Использование](#usage)
+- [Режимы обновления](#refresh-modes)
+- [Свои виджеты](#custom-widgets)
+- [Ограничения и особенности](#limits)
 - [Версии](#versions)
 - [Установка](#install)
 - [Баги и обратная связь](#feedback)
 
-<a id="usage"></a>
+<a id="api"></a>
 
 ## Описание классов
 ### GyverMenu
@@ -43,22 +47,36 @@ https://github.com/user-attachments/assets/41910bcf-d537-4f18-a999-8ff6d2c00438
 // столбцов (длина строки), строк
 GyverMenu(uint8_t cols, uint8_t rows);
 
-// подключить рендер вида void(const char* str, size_t len). Придёт nullptr после окончания вывода
+// изменить размер меню и вернуться в корень
+void resize(uint8_t cols, uint8_t rows);
+
+// подключить вывод текста void(const char* str, size_t len)
+// после окончания отрисовки придёт nullptr
 void onPrint(gm::Menu::PrintCb cb);
 
-// подключить установку курсора вида uint8_t(uint8_t row, bool state)
+// подключить установку позиции void(uint8_t col, uint8_t row)
 void onCursor(gm::Menu::CursorCb cb);
 
-// подключить билдер вида void(gm::Builder& b)
+// оформить состояние строки void(uint8_t row, bool selected, bool editing)
+void onState(gm::Menu::StateCb cb);
+
+// подключить билдер void(gm::Builder& b)
 void onBuild(gm::Builder::BuildCb cb);
+
+// размер маркера, сдвигает меню вправо (умолч. 1)
+void setMarkerSize(bool offset);
+
+// символ внутреннего маркера (умолч. '>')
+void setMarker(char symb);
+char getMarker();
 
 // установить текст кнопки "назад"
 void setBackSign(const char* sign);
 
-// обновить строку с переменной
-void update(void* var);
+// обновить виджет, связанный с переменной
+void update(const void* var);
 
-// обновить экран
+// обновить весь экран
 void refresh();
 
 // на предыдущее меню
@@ -67,87 +85,94 @@ void back();
 // в главное меню
 void home();
 
-// кнопка выбора
+// кнопки управления
 void set();
-
-// кнопка вверх
 void up();
-
-// кнопка вниз
 void down();
-
-// уменьшить напрямую
 void left();
-
-// увеличить напрямую
 void right();
 
-// обновлять экран полностью, например для вывода в консоль (умолч. false)
-void setFullRefresh(bool full);
-
-// включить быстрый курсор - рендерить только курсор при смене строки (умолч. true)
-void setFastCursor(bool fast);
+// режим обновления
+void setRefreshFull();  // весь экран
+void setRefreshRow();   // вся строка
+void setRefreshPart();  // частичное обновление
 
 // получить текущий номер виджета
 uint8_t getWidgetIndex();
+
+// режим редактирования
+bool isEditing();
+void cancelEdit();
 ```
 
 ### gm::Builder
+> Под `Str` далее имеются в виду `const char*`, `const __FlashStringHelper*`, `const String&`
+
 #### Страница
 ```cpp
 // начать страницу (подменю)
-bool PageBegin(const __FlashStringHelper* label); // автоматический ID
-bool PageBegin(uint8_t id, const __FlashStringHelper* label);
-bool PageBegin(const char* label); // автоматический ID
-bool PageBegin(uint8_t id, const char* label);
+bool PageBegin(Str label); // автоматический ID
+bool PageBegin(uint8_t id, Str label);
 
 // закончить страницу (вызывать внутри условия по PageBegin). back - выводить кнопку "назад"
 void PageEnd(bool back = true);
 
 // страница с коллбэком (вместо PageBegin-PageEnd). back - выводить кнопку "назад"
-template <typename PageCb> // автоматический ID
-void Page(const __FlashStringHelper* label, const PageCb& page, bool back = true);
 template <typename PageCb>
-void Page(uint8_t id, const __FlashStringHelper* label, const PageCb& page, bool back = true);
-template <typename PageCb> // автоматический ID
-void Page(const char* label, const PageCb& page, bool back = true);
+void Page(Str label, const PageCb& page, bool back = true);
 template <typename PageCb>
-void Page(uint8_t id, const char* label, const PageCb& page, bool back = true);
+void Page(uint8_t id, Str label, const PageCb& page, bool back = true);
 ```
 
 #### Виджеты
 ```cpp
 // кнопка
-bool Button(const __FlashStringHelper* label, void (*cb)() = nullptr);
-bool Button(const char* label, void (*cb)() = nullptr);
+bool Button(Str label, void (*cb)() = nullptr);
 
 // просто текст
-void Label(const __FlashStringHelper* line);
-void Label(const char* line);
+void Label(Str line);
+
+// значения только для отображения
+void ValueStr(Str label, const char* var);
+void ValueInt(Str label, const T* var, uint8_t base = 10, Str unit = "");
+void ValueFloat(Str label, const float* var, uint8_t dec = 2, Str unit = "");
 
 // выключатель
-bool Switch(const __FlashStringHelper* label, bool* var, void (*cb)(bool v) = nullptr);
-bool Switch(const char* label, bool* var, void (*cb)(bool v) = nullptr);
+bool Switch(Str label, bool* var, void (*cb)(bool v) = nullptr);
 
 // выбор пункта. opts - строка с разделителем ';'
-bool Select(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
-bool Select(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+bool Select(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
 // выбор пункта в стиле "вкладок". tabs - строка с разделителем ';'
-bool Tabs(uint8_t* var, const __FlashStringHelper* tabs, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
-bool Tabs(uint8_t* var, const char* tabs, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+bool Tabs(uint8_t* var, Str tabs, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
-// текстовое значение
-void ValueStr(const __FlashStringHelper* label, const char* value);
-void ValueStr(const char* label, const char* var);
+// редактируемое int значение
+template <typename T>
+bool EditInt(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T v) = nullptr);
 
-// int значение
-bool ValueInt(const __FlashStringHelper* label, T* var, T minv, T maxv, T step, uint8_t base, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr);
-bool ValueInt(const char* label, T* var, T minv, T maxv, T step, uint8_t base = 10, const char* unit = "", void (*cb)(T v) = nullptr);
+// редактируемое float значение
+bool EditFloat(Str label, float* var, float minv, float maxv, float step, uint8_t dec = 2, Str unit = "", void (*cb)(float v) = nullptr);
 
-// float значение
-bool ValueFloat(const __FlashStringHelper* label, float* var, float minv, float maxv, float step, uint8_t dec, const __FlashStringHelper* unit, void (*cb)(float v) = nullptr);
-bool ValueFloat(const char* label, float* var, float minv, float maxv, float step, uint8_t dec = 2, const char* unit = "", void (*cb)(float v) = nullptr);
+// редактирование строки из встроенного или пользовательского алфавита
+// буфер var должен иметь размер минимум maxLen + 1
+bool EditStr(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
+bool EditStr(Str label, char* var, uint8_t maxLen, Str alphabet, void (*cb)(const char* str) = nullptr);
+
+// редактирование печатных ASCII символов 32..126
+// буфер var должен иметь размер минимум maxLen + 1
+bool EditASCII(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
+
+// время, T - структура с полями .second, .minute, .hour или встроенная gm::Time
+template <typename T>
+bool Time(Str label, T* var, void (*cb)(T v) = nullptr);
+
+// дата, D - структура с полями .day, .month, .year или встроенная gm::Date
+template <typename D>
+bool Date(Str label, D* var, void (*cb)(D v) = nullptr);
+
+// битовая маска, bits - кол-во младших бит, вывод - MSB слева
+template <typename T>
+bool Bitmask(Str label, T* var, uint8_t bits, void (*cb)(T v) = nullptr);
 ```
 
 #### Системное
@@ -155,25 +180,32 @@ bool ValueFloat(const char* label, float* var, float minv, float maxv, float ste
 // обновить экран после работы билдера
 void refresh();
 
+// будет ли полный refresh после текущего действия
+bool isRefresh();
+
 // было действие с каким-то из виджетов выше
 bool wasSet();
 
-// сбросить флаг чтения wasSet
+// сбросить флаг wasSet
 void clearSet();
 ```
 
-#### API
+#### API для своих виджетов
 ```cpp
-// начать виджет. true если разрешено
+// зарегистрировать виджет без проверки доступности
+bool registerWidget();
+
+// зарегистрировать виджет и проверить, относится ли текущий проход к нему
 bool beginWidget();
 
-// начать вывод виджета. true если разрешено
-// targetVar - указатель на переменную виджета
-// wCursor - рисовать ли курсор
-bool beginRender(void* targetVar = nullptr, bool wCursor = true);
-
-// получить действие виджета
+// получить текущее действие
 Action getAction();
+
+// начать рендер виджета; с label библиотека обслуживает подпись и Part
+bool beginRender(const void* targetVar = nullptr, const char* label = nullptr);
+
+// выровнять дальнейший вывод вправо на width символов, при нехватке места вывести "ovf"
+bool prepareRight(uint8_t width);
 
 // поднять флаг изменения (влияет на wasSet())
 void change();
@@ -181,30 +213,32 @@ void change();
 // получить новый id для Page
 uint8_t nextId();
 
-// печатать в onPrint
+// объект низкоуровневого меню доступен как b.menu
+Menu& menu;
+```
+
+Основные методы `b.menu` для своих виджетов:
+```cpp
+// печать
 void menu.print(char c);
 void menu.print(const char* str);
 void menu.print(const char* str, uint8_t len, uint8_t letters = 0);
+void menu.printDec2z(uint8_t v);   // 2 цифры с ведущим нулём
+void menu.printDec4z(uint16_t v);  // 4 цифры с ведущими нулями
 
-// заполнить пробелами
+// заполнение пробелами
 void menu.pad(int8_t n);
+void menu.padEnd(int8_t n = 0);
 
-// заполнить пробелами до конца
-void menu.pad();
+// установить позицию вывода. Нужен onCursor()
+bool menu.setPos(uint8_t col);
+bool menu.setPos(uint8_t col, uint8_t row);
 
-// переключить активное состояние (isActive)
+// состояние виджета
 void menu.toggle();
-
-// текущая строка меню
 uint8_t menu.currentRow();
-
-// виджет активен (кнопкой set)
 bool menu.isActive();
-
-// виджет выбран курсором
 bool menu.isChosen();
-
-// виджет в видимой области экрана
 bool menu.isVisible();
 ```
 
@@ -214,14 +248,56 @@ bool menu.isVisible();
 ```cpp
 #define GM_MAX_DEPTH 5  // макс. вложенность меню (умолч. 5)
 #define GM_NO_PAGES     // отключить вложенные меню (облегчает библиотеку)
+#define GM_NO_PART      // отключить частичный вывод значений в Part (облегчает библиотеку)
 ```
 
+<a id="usage"></a>
+
 ## Использование
-> [!NOTE]
-> Документация в разработке!
+### Минимальный пример
+```cpp
+#include <GyverMenu.h>
+
+GyverMenu menu(16, 2);
+bool sw;
+int value;
+
+void setup() {
+    menu.onPrint([](const char* str, size_t len) {
+        if (str) lcd.Print::write(str, len);
+    });
+
+    menu.onCursor([](uint8_t col, uint8_t row) {
+        lcd.setCursor(col, row);
+    });
+
+    menu.onState([](uint8_t row, bool selected, bool editing) {
+        lcd.print(selected && !editing ? '>' : ' ');
+    });
+
+    menu.onBuild([](gm::Builder& b) {
+        b.Switch("Power", &sw);
+        b.EditInt("Value", &value, 0, 100, 1);
+    });
+
+    menu.refresh();
+}
+
+void loop() {
+    // вызывайте menu.up/down/set/left/right по событиям своих кнопок или энкодера
+}
+```
 
 ### Как это работает
-Библиотека осуществляет навигацию по виртуальному меню, которое задаётся в билдере. В качестве точек входа библиотека имеет 5 функций виртуальных кнопок, которые нужно вызывать из основной программы по нажатию физических кнопок или другим событиям. В качестве точек выхода - три функции-обработчика: билдер, установка курсора и печать текста. Таким образом, библиотека вообще не привязана к конкретным дисплеям и способам ввода и даже к Arduino фреймворку - её можно запустить теоретически на любой платформе, само меню например выводить текстом в консоль, а кнопки "вверх" и "вниз" сделать голосовым вводом.
+Библиотека хранит только состояние навигации, а само меню является виртуальным и каждый раз описывается в билдере. Билдер может выполняться несколько раз для разных задач: обработать действие, найти нужный виджет, перерисовать строку или весь экран. Поэтому набор и порядок виджетов в одном состоянии меню должен быть воспроизводимым, а тяжёлую работу внутри билдера лучше не выполнять.
+
+В качестве точек входа библиотека имеет 5 виртуальных кнопок, которые можно связать с любыми физическими кнопками, джойстиком или энкодером. В качестве точек выхода используются обработчики:
+- `onBuild(gm::Builder& b)` - построение меню
+- `onPrint(const char* str, size_t len)` - вывод текста
+- `onCursor(uint8_t col, uint8_t row)` - установка позиции вывода
+- `onState(uint8_t row, bool selected, bool editing)` - оформление состояния строки
+
+Библиотека не привязана к конкретному дисплею и способу ввода. Текстовое меню можно вывести на LCD, OLED, терминал или другой интерфейс, а для графического дисплея можно написать свои виджеты.
 
 ### Кнопки
 Библиотека предусматривает **виртуальных** 5 кнопок управления + отдельные команды "вернуться на предыдущее меню" и "на главный экран", но на практике это может быть любое другое количество кнопок - хоть одна, хоть энкодер. Логика работы такая:
@@ -233,6 +309,8 @@ bool menu.isVisible();
 - `menu.right()` - напрямую увеличивает значение текущего виджета независимо от режима изменения. Также нажимает кнопку входа в подменю и виджет `Button`
 - `menu.back()` - возвращает на предыдущее меню
 - `menu.home()` - возвращает в главное меню
+- `menu.isEditing()` - проверить, находится ли текущий виджет в режиме редактирования
+- `menu.cancelEdit()` - выйти из редактирования. В `Full` обновится весь экран, в `Row/Part` - текущая строка
 
 Таким образом, сценарии навигации могут быть:
 
@@ -250,7 +328,7 @@ bool menu.isVisible();
 В общем можно придумать очень много вариантов, используйте [EncButton](https://github.com/GyverLibs/EncButton) для обработки кнопок и энкодеров и вдохновляйтесь китайскими цифровыми паяльниками.
 
 ### Обработчики
-Для использования меню нужно подключить 3 обработчика. Обязательным является только билдер, остальные могут не использоваться при написании своих виджетов под свой дисплей:
+Для обычного текстового меню используются четыре обработчика. Обязательным является только билдер. `onCursor` нужен для адресуемого позиционирования и режима `Part`, `onState` необязателен и используется только для оформления состояния строки.
 
 #### Билдер
 ```cpp
@@ -263,49 +341,96 @@ menu.onBuild(builder);
 #### Печать
 ```cpp
 void printer(const char* str, size_t len) {
-    // str - строка для вывода на дисплей
-    // если str == nullptr - отрисовка меню закончена (для случаев когда нужно обновить экран)
-    // len - кол-во символов в строке
+    // str - строка для вывода
+    // str == nullptr - текущая отрисовка закончена, можно обновить дисплей или перенести строку в консоли
+    // len - длина строки в байтах
 }
 menu.onPrint(printer);
 ```
 
 #### Курсор
+`onCursor` устанавливает позицию вывода и нужен для режима `Part`:
 ```cpp
-uint8_t cursor(uint8_t row, bool chosen, bool active) {
-    // row - текущая строка дисплея
-    // chosen - выбран ли текущий виджет курсором
-    // active - находится ли текущий виджет в режиме изменения
-    // return количество символов (столбцов), которое занял курсор (если занял)
+void cursor(uint8_t col, uint8_t row) {
+    // установить позицию вывода
 }
 menu.onCursor(cursor);
 ```
 
-Примеры обработчиков для LCD дисплея со стандартной библиотекой, курсор вида `>`, отсутствие курсора - пробел ` `:
+#### Состояние
+`onState` вызывается перед отрисовкой строки и отдельно при перемещении по строкам:
+```cpp
+void state(uint8_t row, bool selected, bool editing) {
+    // row - строка дисплея
+    // selected - строка выбрана
+    // editing - выбранный виджет находится в режиме изменения
+}
+menu.onState(state);
+```
 
+Перед `onState` библиотека устанавливает позицию в начало строки через `onCursor`, если он подключён. `row` остаётся в `onState`, чтобы обработчик мог работать независимо, например в Serial или графическом renderer. Если оформление состояния занимает один столбец слева, оставьте `setMarkerSize(true)` (умолчание), если не занимает - `setMarkerSize(false)`.
+
+Геометрия вывода при этом остаётся в `onCursor`.
+
+Пример для LCD с курсором `>`:
 ```cpp
 menu.onPrint([](const char* str, size_t len) {
     if (str) lcd.Print::write(str, len);
 });
 
-menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-    lcd.setCursor(0, row);
-    lcd.print(chosen && !active ? '>' : ' ');
-    return 1;
+menu.onCursor([](uint8_t col, uint8_t row) {
+    lcd.setCursor(col, row);
+});
+
+menu.onState([](uint8_t row, bool selected, bool editing) {
+    lcd.print(selected && !editing ? '>' : ' ');
 });
 ```
 
-Обработчик курсора вызывается не только перед началом отрисовки строки, но и при смене строки. Именно для этого он сделан отдельным - при смене курсора перерисовывается только курсор, а не всё меню, что повышает скорость и отзывчивость системы. Отключить такое поведение и всегда перерисовывать строку полностью можно при помощи `menu.setFastCursor(true)`.
-
-Кажется что это слишком хитро - но зато гибко. Например, для OLED дисплея можно не рисовать курсор, а инвертировать вывод текста для текущей строки:
+Для OLED можно не занимать отдельный столбец, а например инвертировать выбранную строку:
 
 ```cpp
-menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-    oled.setCursor(0, row);
-    oled.invertText(chosen);
-    return 0;
+menu.setMarkerSize(false);
+
+menu.onCursor([](uint8_t col, uint8_t row) {
+    oled.setCursor(col, row);
 });
-menu.setFastCursor(true);
+
+menu.onState([](uint8_t row, bool selected, bool editing) {
+    oled.invertText(selected);
+});
+```
+
+<a id="refresh-modes"></a>
+
+### Режимы обновления
+Режим задаётся через:
+```cpp
+menu.setRefreshMode(gm::RefreshMode::Part);
+```
+
+или короткими функциями:
+```cpp
+menu.setRefreshPart();
+menu.setRefreshRow();
+menu.setRefreshFull();
+```
+
+- `Part` - минимальная перерисовка. При перемещении по видимым строкам меняется только оформление курсора, а при повторных изменениях выбранного виджета встроенные виджеты обновляют только область значения. Первое изменение после навигации, вход и выход из редактирования выводят строку целиком. Требует `onCursor`. Частичный вывод значений можно отключить через `GM_NO_PART` для уменьшения flash, быстрое обновление маркера при навигации при этом сохраняется
+- `Row` - при перемещении перерисовываются старая и новая строки, значение виджета также обновляется в строке. Это режим по умолчанию
+- `Full` - после действия перерисовывается весь экран. Подходит для терминала, framebuffer или рендера, где частичное обновление не имеет смысла
+
+Обычно:
+- LCD с адресуемым курсором - `Part`
+- простой OLED текстом - `Part` или `Row`
+- framebuffer/терминал/рендер кадром целиком - `Full`
+
+`menu.update(&var)` запускает поиск виджета, связанного с этой переменной, и обновляет только его. Обновление через `update()` выводит виджет обычным способом без использования предыдущего Part-контекста.
+
+Если меняется структура меню - например по `Switch` появляются или исчезают другие виджеты - вызовите `b.refresh()` из билдера после изменения:
+```cpp
+if (b.Switch("Extra", &showExtra)) b.refresh();
+if (showExtra) b.Button("Extra button");
 ```
 
 ### Билдер и виджеты
@@ -397,22 +522,131 @@ menu.onBuild([](gm::Builder& b) {
 });
 ```
 
+<a id="custom-widgets"></a>
+
+### Свои виджеты
+Встроенные значения разделены по поведению: `Value*` - только отображение, `Edit*` - редактирование.
+
+Системные виджеты построены на том же API, который доступен пользователю. Минимальный виджет обычно состоит из `beginWidget()`, обработки `getAction()` и `beginRender()`:
+
+- `beginRender(var)` - виджет рисует строку самостоятельно
+- `beginRender(var, label)` - библиотека обслуживает label и при возможности использует `Part` для области значения
+- `prepareRight(width)` - выравнивает дальнейший вывод вправо и запоминает ширину области для последующего `Part`
+
+Пример простого числового виджета с блоком шириной 2 символа и поддержкой `update(&var)`/`Part`:
+```cpp
+bool MyValue(gm::Builder& b, const char* label, uint8_t* var) {
+    if (!b.beginWidget()) return false;
+
+    bool changed = false;
+    bool render = false;
+
+    switch (b.getAction()) {
+        case gm::Builder::Action::Refresh:
+            render = true;
+            break;
+
+        case gm::Builder::Action::Set:
+            b.menu.toggle();
+            render = true;
+            break;
+
+        case gm::Builder::Action::SetUp:
+        case gm::Builder::Action::Right:
+            if (*var < 99) {
+                ++*var;
+                render = changed = true;
+                b.change();
+            }
+            break;
+
+        case gm::Builder::Action::SetDown:
+        case gm::Builder::Action::Left:
+            if (*var) {
+                --*var;
+                render = changed = true;
+                b.change();
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    if (render && b.beginRender(var, label) && b.prepareRight(2)) {
+        b.menu.printDec2z(*var);
+    }
+
+    return changed;
+}
+```
+
+Использование:
+```cpp
+uint8_t value;
+
+menu.onBuild([](gm::Builder& b) {
+    MyValue(b, "Value", &value);
+});
+
+// изменить value из программы и обновить только связанный виджет
+value = 42;
+menu.update(&value);
+```
+
+Для значения переменной длины используется тот же `beginRender(var, label)`, а в `prepareRight()` передаётся актуальная ширина значения:
+```cpp
+if (b.beginRender(var, label) && b.prepareRight(valueWidth)) {
+    b.menu.print(value);
+}
+```
+
+Для полностью графического виджета используйте `beginRender(var)` без `label` и рисуйте напрямую в свой дисплей. `beginRender()` всё равно вызывает `onState`, поэтому renderer получает актуальные `selected/editing`.
+
+<a id="limits"></a>
+
+### Ограничения и особенности
+- Если значение не вмещается в дисплей - вместо него будет выведено многоточие
+- Билдер является декларативным и может вызываться несколько раз на одно пользовательское действие. Не выполняйте в нём задержки, сетевые запросы и другую тяжёлую работу
+- Порядок виджетов определяет их индексы и навигацию. Если условие меняет набор виджетов, после изменения структуры нужен `b.refresh()`
+- `menu.update(ptr)` находит виджет по указателю, переданному в его `beginRender`. Для предсказуемого обновления используйте уникальную переменную для обновляемого виджета
+- `Part` требует подключённый `onCursor`. Без него частичное позиционирование невозможно
+- `beginRender(var, label)` предполагает, что изменяемая область находится после `label`; первый вывод выполняется целиком, следующие изменения выбранного виджета могут обновлять только область значения
+- Для правого выравнивания вызывайте `prepareRight(width)` с актуальной шириной выводимой области. При нехватке места будет выведено `ovf`
+- `markerSize` равен одному столбцу по умолчанию. Для renderer без отдельного символа курсора вызовите `setMarkerSize(false)`
+- `Time`: структура должна иметь поля `hour`, `minute`, `second`, `Date` - `day`, `month`, `year`
+- `Bitmask`: `bits` ограничивается размером типа переменной
+- `GM_NO_PAGES` отключает страницы и уменьшает размер библиотеки
+- `GM_NO_PART` отключает частичный вывод изменяемой области виджетов. Быстрое обновление маркера при навигации в режиме `Part` сохраняется
+- После изменения размеров дисплея `resize(cols, rows)` сбрасывает навигацию в корень
+
+### Ввод текста
+Виджет `EditStr` работает следующим образом:
+- `EditStr` использует стандартный алфавит библиотеки: 0-9 A-Z a-z символы. Можно передать внешний алфавит
+- `EditASCII` "легче" и использует чистую таблицу ASCII, без хранения алфавита
+- Буфер должен иметь размер минимум `maxLen + 1` для завершающего `\0`
+- Длину строки можно менять только справа - нужно поставить курсор на последнюю позицию, за строку: `foo>`. Если нажать "вниз" - строка укоротится на один символ, если "вверх" - будет добавлен новый символ перед курсором
+
 #### Трюки
-У виджетов с настройкой шага изменения шаг можно задавать динамически, например от скорости вращения энкодера. С библиотекой EncButton это может выглядеть так:
+У виджетов с настройкой шага изменения шаг можно задавать динамически, например от скорости вращения энкодера. С библиотекой EncButton или uEncoder это может выглядеть так:
 
 ```cpp
 int vali;
 
 menu.onBuild([](gm::Builder& b) {
-    b.ValueInt<int>("ValueInt", &vali, -100, 100, encb.fast() ? 10 : 1);
+    b.EditInt<int>("EditInt", &vali, -100, 100, encb.fast() ? 10 : 1);
 });
 ```
 
 Т.е. при быстром вращении энкодера шаг будет 10 (грубый), а при медленном - 1 (точный). Билдер вызывается на каждом действии изменения значения, поэтому шаг будет выбираться для каждого клика.
 
 ### Примеры
-```cpp
-```
+В папке `examples` есть отдельные примеры для:
+- LCD и OLED
+- Режимов обновления
+- Страниц и навигации
+- Обновления переменной через `update`
+- Собственных текстовых и графических виджетов
 
 <a id="versions"></a>
 
@@ -420,6 +654,7 @@ menu.onBuild([](gm::Builder& b) {
 - v1.0
 
 <a id="install"></a>
+
 ## Установка
 - Библиотеку можно найти по названию **GyverMenu** и установить через менеджер библиотек в:
     - Arduino IDE

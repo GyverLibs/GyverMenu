@@ -47,10 +47,11 @@ void setup() {
     menu.onPrint([](const char* str, size_t len) {
         if (str) lcd.Print::write(str, len);
     });
-    menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-        lcd.setCursor(0, row);
-        lcd.print(chosen && !active ? '>' : ' ');
-        return 1;
+    menu.onCursor([](uint8_t col, uint8_t row) {
+        lcd.setCursor(col, row);
+    });
+    menu.onState([](uint8_t row, bool chosen, bool active) {
+        lcd.print(chosen && !active ? menu.getMarker() : ' ');
     });
 
     menu.onBuild([](gm::Builder& b) {
@@ -71,8 +72,8 @@ void setup() {
                 break;
 
             case 2:
-                b.ValueInt("int 1", &val, -10, 10, 2);
-                b.ValueInt("int 2", &val, -10, 10, 2);
+                b.EditInt("int 1", &val, -10, 10, 2);
+                b.EditInt("int 2", &val, -10, 10, 2);
                 break;
 
             case 3:

@@ -33,6 +33,7 @@ GyverOLED<SSD1306_128x64, OLED_NO_BUFFER> oled;
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 // #define GM_NO_PAGES
+// #define GM_NO_PART
 #include <GyverMenu.h>
 GyverMenu menu(20, 4);
 
@@ -40,6 +41,11 @@ bool sw;
 uint8_t sel;
 int vali;
 float valf;
+char editstr[9] = "Gyver";
+char editascii[9] = "Menu";
+gm::Time time;
+gm::Date date;
+uint8_t flags = 0b00111;
 
 void setup() {
     Serial.begin(115200);
@@ -52,27 +58,36 @@ void setup() {
         if (str) lcd.Print::write(str, len);
 
         if (str) oled.Print::write(str, len);
-        else oled.update();
+        // else oled.update();
     });
-    menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-        lcd.setCursor(0, row);
-        lcd.print(chosen && !active ? '>' : ' ');
-
-        oled.setCursor(0, row);
-        oled.print(chosen && !active ? '>' : ' ');
-        return 1;
+    menu.onCursor([](uint8_t col, uint8_t row) {
+        lcd.setCursor(col, row);
+        oled.setCursor(col * 6, row);
+    });
+    menu.onState([](uint8_t row, bool chosen, bool active) {
+        char marker = chosen && !active ? menu.getMarker() : ' ';
+        lcd.print(marker);
+        oled.print(marker);
     });
 
     menu.onBuild([](gm::Builder& b) {
         b.Button("Button", []() { Serial.println("click!"); });
         b.Switch("Switch", &sw, [](bool v) { Serial.println(v); });
         b.ValueStr("ValueStr", "foo");
+        b.ValueInt("ValueInt", &vali);
+        b.ValueFloat("ValueFloat", &valf, 2, "V");
         b.Label("Some line");
         b.Select("Select", &sel, "abc;123;test", [](uint8_t n, const char* str, uint8_t len) { Serial.write(str, len); });
-        b.ValueInt<int>("ValueInt", &vali, -10, 10, 2, DEC, "%", [](int v) { Serial.println(v); });
-        b.ValueFloat("ValueFloat", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
+        b.EditInt<int>("EditInt", &vali, -10, 10, 2, "%", [](int v) { Serial.println(v); });
+        b.EditFloat("EditFloat", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
+        b.EditStr("EditStr", editstr, 8);
+        b.EditASCII("EditASCII", editascii, 8);
+        b.Time("Time", &time);
+        b.Date("Date", &date);
+        b.Bitmask("Flags", &flags, 5);
     });
 
+    menu.setRefreshPart();
     menu.refresh();
 }
 

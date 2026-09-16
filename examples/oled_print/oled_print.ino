@@ -44,11 +44,13 @@ void setup() {
         if (str) oled.Print::write(str, len);
         else oled.update();
     });
-    menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-        oled.setCursor(0, row);
-        oled.invertText(chosen);
-        return 0;
+    menu.onCursor([](uint8_t col, uint8_t row) {
+        oled.setCursor(col * 6, row);
     });
+    menu.onState([](uint8_t row, bool chosen, bool active) {
+        oled.invertText(chosen);
+    });
+    menu.setMarkerSize(false);
 
     menu.onBuild([](gm::Builder& b) {
         b.Button("Button", []() { Serial.println("click!"); });
@@ -56,11 +58,11 @@ void setup() {
         b.ValueStr("ValueStr", "foo");
         b.Label("Some line");
         b.Select("Select", &sel, "abc;123;test", [](uint8_t n, const char* str, uint8_t len) { Serial.write(str, len); });
-        b.ValueInt<int>("ValueInt", &vali, -10, 10, 2, DEC, "%", [](int v) { Serial.println(v); });
-        b.ValueFloat("ValueFloat", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
+        b.EditInt<int>("EditInt", &vali, -10, 10, 2, "%", [](int v) { Serial.println(v); });
+        b.EditFloat("EditFloat", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
     });
 
-    menu.setFastCursor(false);
+    menu.setRefreshPart();
     menu.refresh();
 }
 

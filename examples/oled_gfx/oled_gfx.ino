@@ -73,7 +73,7 @@ bool MySlider(gm::Builder& b, const char* label, uint8_t maxv, uint8_t* var) {
         default: break;
     }
 
-    if (render && b.beginRender()) {
+    if (render && b.beginRender(var)) {
         oled.rect(8, b.menu.currentRow() * 16, 127, (b.menu.currentRow() + 1) * 16 - 1, OLED_CLEAR);
         oled.setCursor(12, b.menu.currentRow() * 2);
         oled.print(label);
@@ -122,7 +122,7 @@ bool MySwitch(gm::Builder& b, const char* label, bool* var) {
         default: break;
     }
 
-    if (render && b.beginRender()) {
+    if (render && b.beginRender(var)) {
         oled.rect(8, b.menu.currentRow() * 16, 127, (b.menu.currentRow() + 1) * 16 - 1, OLED_CLEAR);
         oled.setCursor(12, b.menu.currentRow() * 2);
         oled.print(label);
@@ -147,15 +147,12 @@ void setup() {
     menu.onPrint([](const char* str, size_t len) {
         if (!str) oled.update();
     });
-    menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-        oled.setCursor(0, row * 2);
-
+    menu.onState([](uint8_t row, bool chosen, bool active) {
         if (chosen && !active) {
             oled.rect(0, row * 16 + 5, 8, row * 16 + 10, OLED_FILL);
         } else {
             oled.rect(0, row * 16, 8, row * 16 + 16, OLED_CLEAR);
         }
-        return 1;
     });
 
     menu.refresh();

@@ -43,17 +43,19 @@ void setup() {
     menu.onPrint([](const char* str, size_t len) {
         if (str) lcd.Print::write(str, len);
     });
-    menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-        lcd.setCursor(0, row);
-        lcd.print(chosen && !active ? '>' : ' ');
-        return 1;
+    menu.onCursor([](uint8_t col, uint8_t row) {
+        lcd.setCursor(col, row);
+    });
+    menu.onState([](uint8_t row, bool chosen, bool active) {
+        lcd.print(chosen && !active ? menu.getMarker() : ' ');
     });
 
     menu.onBuild([](gm::Builder& b) {
-        b.ValueInt<int>("ValueInt", &vali, -10, 10, 2, DEC, "%");
+        b.EditInt<int>("EditInt", &vali, -10, 10, 2, "%");
         b.Select("Select", &sel, "abc;123;test", [](uint8_t n, const char* str, uint8_t len) { Serial.write(str, len); });
     });
 
+    menu.setRefreshPart();
     menu.refresh();
 }
 

@@ -42,10 +42,9 @@ void setup() {
         if (str) Serial.write(str, len);
         else Serial.println();
     });
-    menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
+    menu.onState([](uint8_t row, bool chosen, bool active) {
         Serial.println();
-        Serial.print(chosen && !active ? '>' : ' ');
-        return 1;
+        Serial.print(chosen && !active ? menu.getMarker() : ' ');
     });
 
     menu.onBuild([](gm::Builder& b) {
@@ -54,12 +53,12 @@ void setup() {
         b.ValueStr("ValueStr", "foo");
         b.Label("Some line");
         b.Select("Select", &sel, "abc;123;test", [](uint8_t n, const char* str, uint8_t len) { Serial.write(str, len); });
-        b.ValueInt<int>("ValueInt", &vali, -10, 10, 2, DEC, "%", [](int v) { Serial.println(v); });
-        b.ValueFloat("ValueFloat", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
+        b.EditInt<int>("EditInt", &vali, -10, 10, 2, "%", [](int v) { Serial.println(v); });
+        b.EditFloat("EditFloat", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
     });
 
+    menu.setRefreshFull();
     menu.refresh();
-    menu.setFullRefresh(true);
 }
 
 void loop() {

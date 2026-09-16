@@ -45,30 +45,29 @@ void setup() {
     menu.onPrint([](const char* str, size_t len) {
         if (str) lcd.Print::write(str, len);
     });
-    menu.onCursor([](uint8_t row, bool chosen, bool active) -> uint8_t {
-        lcd.setCursor(0, row);
-        lcd.print(chosen && !active ? '>' : ' ');
-        return 1;
+    menu.onCursor([](uint8_t col, uint8_t row) {
+        lcd.setCursor(col, row);
+    });
+    menu.onState([](uint8_t row, bool chosen, bool active) {
+        lcd.print(chosen && !active ? menu.getMarker() : ' ');
     });
 
     menu.onBuild([](gm::Builder& b) {
         b.Label("   ---Settings---");
-        
+
         // Важно: `GM_NEXT` разворачивается во время компиляции и в теле `for` даёт один и тот же ID для каждой итерации.
         // Для динамического создания страниц используйте `Page(label, cb)` / `PageBegin(label)` с автоматическим ID
         // или назначайте вручную с помощью `nextId()`.
 
         b.Page("Subs", [](gm::Builder& b) {
-            for (uint8_t i = 0; i < 3; i++)
-            {
+            for (uint8_t i = 0; i < 3; i++) {
                 String fieldLabel = "Sub " + String(i + 1);
-                b.Page(fieldLabel.c_str(), [&i](gm::Builder& b) { // Захват внешних переменных для лямбда-функции элемента Page
-                    for (uint8_t j = 0; j < 5; j++)
-                    {
+                b.Page(fieldLabel.c_str(), [&i](gm::Builder& b) {  // Захват внешних переменных для лямбда-функции элемента Page
+                    for (uint8_t j = 0; j < 5; j++) {
                         String btnLabel = "Subsub " + String(char('A' + j));
-                        b.Page(btnLabel.c_str(), [&i, &j](gm::Builder& b) { // Захват внешних переменных для лямбда-функции элемента Page
-                             b.Label("i = " + String(i));
-                             b.Label("j = " + String(j));
+                        b.Page(btnLabel.c_str(), [&i, &j](gm::Builder& b) {  // Захват внешних переменных для лямбда-функции элемента Page
+                            b.Label("i = " + String(i));
+                            b.Label("j = " + String(j));
                         });
                     }
                 });
