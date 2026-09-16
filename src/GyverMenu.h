@@ -96,21 +96,22 @@ class GyverMenu {
     // установить режим обновления
     void setRefreshMode(gm::RefreshMode mode) {
         _menu.updateMode = mode;
+        _menu.resetPart();
     }
 
     // обновлять экран полностью
     void setRefreshFull() {
-        _menu.updateMode = gm::RefreshMode::Full;
+        setRefreshMode(gm::RefreshMode::Full);
     }
 
     // обновлять изменённые строки целиком
     void setRefreshRow() {
-        _menu.updateMode = gm::RefreshMode::Row;
+        setRefreshMode(gm::RefreshMode::Row);
     }
 
     // обновлять только изменяемую часть, если это возможно
     void setRefreshPart() {
-        _menu.updateMode = gm::RefreshMode::Part;
+        setRefreshMode(gm::RefreshMode::Part);
     }
 
     // получить текущий номер виджета
@@ -149,12 +150,12 @@ class GyverMenu {
 
     // обновлять экран полностью, например для вывода в консоль (умолч. false)
     void setFullRefresh(bool full) __attribute__((deprecated("Use setRefreshMode() instead."))) {
-        _menu.updateMode = full ? gm::RefreshMode::Full : gm::RefreshMode::Row;
+        setRefreshMode(full ? gm::RefreshMode::Full : gm::RefreshMode::Row);
     }
 
     // включить быстрый курсор - рендерить только курсор при смене строки (умолч. true)
     void setFastCursor(bool fast) __attribute__((deprecated("Use setRefreshMode() instead."))) {
-        _menu.updateMode = fast ? gm::RefreshMode::Part : gm::RefreshMode::Row;
+        setRefreshMode(fast ? gm::RefreshMode::Part : gm::RefreshMode::Row);
     }
 
     // MARK: private

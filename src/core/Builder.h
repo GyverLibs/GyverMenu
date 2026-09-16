@@ -266,17 +266,17 @@ class Builder {
     // =================== VALUE STR ===================
     // MARK: value
 #ifdef ARDUINO
-    void ValueStr(const __FlashStringHelper* label, const char* value) {
+    void ValueText(const __FlashStringHelper* label, const char* value) {
         GM_READ_PGM(label, label_s);
-        ValueStr(label_s, value);
+        ValueText(label_s, value);
     }
 
-    void ValueStr(const String& label, const char* value) {
-        ValueStr(label.c_str(), value);
+    void ValueText(const String& label, const char* value) {
+        ValueText(label.c_str(), value);
     }
 #endif
 
-    void ValueStr(const char* label, const char* var) {
+    void ValueText(const char* label, const char* var) {
         if (beginWidget() && getAction() == Action::Refresh && beginRender(var, label)) {
             uint8_t letters;
             uint8_t len = gmutil::strlenU(var, &letters);
@@ -708,50 +708,50 @@ class Builder {
 #ifdef ARDUINO
 
     // default AB
-    bool EditStr(const __FlashStringHelper* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
+    bool Text(const __FlashStringHelper* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
         GM_READ_PGM(label, label_s);
-        return EditStr(label_s, var, maxLen, cb);
+        return Text(label_s, var, maxLen, cb);
     }
-    bool EditStr(const String& label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
-        return EditStr(label.c_str(), var, maxLen, cb);
+    bool Text(const String& label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
+        return Text(label.c_str(), var, maxLen, cb);
     }
 
     // custom AB
-    bool EditStr(const __FlashStringHelper* label, char* var, uint8_t maxLen, const __FlashStringHelper* alphabet, void (*cb)(const char* str) = nullptr) {
+    bool Text(const __FlashStringHelper* label, char* var, uint8_t maxLen, const __FlashStringHelper* alphabet, void (*cb)(const char* str) = nullptr) {
         GM_READ_PGM(label, label_s);
-        return EditStr(label_s, var, maxLen, alphabet, cb);
+        return Text(label_s, var, maxLen, alphabet, cb);
     }
-    bool EditStr(const String& label, char* var, uint8_t maxLen, const __FlashStringHelper* alphabet, void (*cb)(const char* str) = nullptr) {
-        return EditStr(label.c_str(), var, maxLen, alphabet, cb);
+    bool Text(const String& label, char* var, uint8_t maxLen, const __FlashStringHelper* alphabet, void (*cb)(const char* str) = nullptr) {
+        return Text(label.c_str(), var, maxLen, alphabet, cb);
     }
-    bool EditStr(const char* label, char* var, uint8_t maxLen, const __FlashStringHelper* alphabet, void (*cb)(const char* str) = nullptr) {
-        return _editStr(label, var, maxLen, (const char*)alphabet, cb);
+    bool Text(const char* label, char* var, uint8_t maxLen, const __FlashStringHelper* alphabet, void (*cb)(const char* str) = nullptr) {
+        return _editText(label, var, maxLen, (const char*)alphabet, cb);
     }
 #else
-    bool EditStr(const char* label, char* var, uint8_t maxLen, const char* alphabet, void (*cb)(const char* str) = nullptr) {
-        return _editStr(label, var, maxLen, alphabet, cb);
+    bool Text(const char* label, char* var, uint8_t maxLen, const char* alphabet, void (*cb)(const char* str) = nullptr) {
+        return _editText(label, var, maxLen, alphabet, cb);
     }
 #endif
 
-    bool EditStr(const char* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
-        return _editStr(label, var, maxLen, _gmInputAlphabet, cb);
+    bool Text(const char* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
+        return _editText(label, var, maxLen, _gmInputAlphabet, cb);
     }
 
     // =================== EDIT ASCII ===================
     // MARK: edit ascii
 
 #ifdef ARDUINO
-    bool EditASCII(const __FlashStringHelper* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
+    bool TextASCII(const __FlashStringHelper* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
         GM_READ_PGM(label, label_s);
-        return EditASCII(label_s, var, maxLen, cb);
+        return TextASCII(label_s, var, maxLen, cb);
     }
 
-    bool EditASCII(const String& label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
-        return EditASCII(label.c_str(), var, maxLen, cb);
+    bool TextASCII(const String& label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
+        return TextASCII(label.c_str(), var, maxLen, cb);
     }
 #endif
 
-    bool EditASCII(const char* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
+    bool TextASCII(const char* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
         if (!beginWidget()) return false;
         if (!maxLen) return false;
 
@@ -839,20 +839,20 @@ class Builder {
 
 #ifdef ARDUINO
     template <typename T>
-    bool EditInt(const __FlashStringHelper* label, T* var, T minv, T maxv, T step, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr) {
+    bool Int(const __FlashStringHelper* label, T* var, T minv, T maxv, T step, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(unit, unit_s);
-        return EditInt(label_s, var, minv, maxv, step, unit_s, cb);
+        return Int(label_s, var, minv, maxv, step, unit_s, cb);
     }
 
     template <typename T>
-    bool EditInt(const String& label, T* var, T minv, T maxv, T step, const String& unit, void (*cb)(T v) = nullptr) {
-        return EditInt(label.c_str(), var, minv, maxv, step, unit.c_str(), cb);
+    bool Int(const String& label, T* var, T minv, T maxv, T step, const String& unit, void (*cb)(T v) = nullptr) {
+        return Int(label.c_str(), var, minv, maxv, step, unit.c_str(), cb);
     }
 #endif
 
     template <typename T>
-    bool EditInt(const char* label, T* var, T minv, T maxv, T step, const char* unit = "", void (*cb)(T v) = nullptr) {
+    bool Int(const char* label, T* var, T minv, T maxv, T step, const char* unit = "", void (*cb)(T v) = nullptr) {
         int32_t value = *var;
 
         bool changed = _editNum<int32_t>(label, &value, (int32_t)minv, (int32_t)maxv, (int32_t)step, 10, unit, nullptr, var);
@@ -869,18 +869,18 @@ class Builder {
     // MARK: edit float
 
 #ifdef ARDUINO
-    bool EditFloat(const __FlashStringHelper* label, float* var, float minv, float maxv, float step, uint8_t dec, const __FlashStringHelper* unit, void (*cb)(float v) = nullptr) {
+    bool Float(const __FlashStringHelper* label, float* var, float minv, float maxv, float step, uint8_t dec, const __FlashStringHelper* unit, void (*cb)(float v) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(unit, unit_s);
-        return EditFloat(label_s, var, minv, maxv, step, dec, unit_s, cb);
+        return Float(label_s, var, minv, maxv, step, dec, unit_s, cb);
     }
 
-    bool EditFloat(const String& label, float* var, float minv, float maxv, float step, uint8_t dec, const String& unit, void (*cb)(float v) = nullptr) {
-        return EditFloat(label.c_str(), var, minv, maxv, step, dec, unit.c_str(), cb);
+    bool Float(const String& label, float* var, float minv, float maxv, float step, uint8_t dec, const String& unit, void (*cb)(float v) = nullptr) {
+        return Float(label.c_str(), var, minv, maxv, step, dec, unit.c_str(), cb);
     }
 #endif
 
-    bool EditFloat(const char* label, float* var, float minv, float maxv, float step, uint8_t dec = 2, const char* unit = "", void (*cb)(float v) = nullptr) {
+    bool Float(const char* label, float* var, float minv, float maxv, float step, uint8_t dec = 2, const char* unit = "", void (*cb)(float v) = nullptr) {
         return _editNum<float>(label, var, minv, maxv, step, dec, unit, cb);
     }
 
@@ -1155,8 +1155,8 @@ class Builder {
         return changed;
     }
 
-    // MARK: _editStr
-    bool _editStr(const char* label, char* var, uint8_t maxLen, const char* alphabet, void (*cb)(const char* str)) {
+    // MARK: _editText
+    bool _editText(const char* label, char* var, uint8_t maxLen, const char* alphabet, void (*cb)(const char* str)) {
         if (!beginWidget()) return false;
         if (!maxLen || !alphabet) return false;
 

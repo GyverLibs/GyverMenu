@@ -51,7 +51,7 @@ void setup() {
     });
 
     menu.onBuild([](gm::Builder& b) {
-        b.EditInt<int>("EditInt", &vali, -10, 10, 2, "%");
+        b.Int<int>("Int", &vali, -10, 10, 2, "%");
         b.Select("Select", &sel, "abc;123;test", [](uint8_t n, const char* str, uint8_t len) { Serial.write(str, len); });
     });
 

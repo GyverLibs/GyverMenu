@@ -133,7 +133,7 @@ bool Button(Str label, void (*cb)() = nullptr);
 void Label(Str line);
 
 // значения только для отображения
-void ValueStr(Str label, const char* var);
+void ValueText(Str label, const char* var);
 void ValueInt(Str label, const T* var, uint8_t base = 10, Str unit = "");
 void ValueFloat(Str label, const float* var, uint8_t dec = 2, Str unit = "");
 
@@ -148,19 +148,19 @@ bool Tabs(uint8_t* var, Str tabs, void (*cb)(uint8_t n, const char* str, uint8_t
 
 // редактируемое int значение
 template <typename T>
-bool EditInt(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T v) = nullptr);
+bool Int(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T v) = nullptr);
 
 // редактируемое float значение
-bool EditFloat(Str label, float* var, float minv, float maxv, float step, uint8_t dec = 2, Str unit = "", void (*cb)(float v) = nullptr);
+bool Float(Str label, float* var, float minv, float maxv, float step, uint8_t dec = 2, Str unit = "", void (*cb)(float v) = nullptr);
 
 // редактирование строки из встроенного или пользовательского алфавита
 // буфер var должен иметь размер минимум maxLen + 1
-bool EditStr(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
-bool EditStr(Str label, char* var, uint8_t maxLen, Str alphabet, void (*cb)(const char* str) = nullptr);
+bool Text(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
+bool Text(Str label, char* var, uint8_t maxLen, Str alphabet, void (*cb)(const char* str) = nullptr);
 
 // редактирование строки по всей таблице ASCII
 // буфер var должен иметь размер минимум maxLen + 1
-bool EditASCII(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
+bool TextASCII(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
 
 // время, T - структура с полями .second, .minute, .hour или встроенная gm::Time
 template <typename T>
@@ -277,7 +277,7 @@ void setup() {
 
     menu.onBuild([](gm::Builder& b) {
         b.Switch("Power", &sw);
-        b.EditInt("Value", &value, 0, 100, 1);
+        b.Int("Value", &value, 0, 100, 1);
     });
 
     menu.refresh();
@@ -526,7 +526,7 @@ menu.onBuild([](gm::Builder& b) {
 
 ### Ограничения и особенности
 - Если значение не вмещается в дисплей - вместо него будет выведено многоточие
-- `EditInt` внутри работает с `int32_t` значением, поэтому нельзя редактировать числа больше ~2.1 миллиона
+- `Int` внутри работает с `int32_t` значением, поэтому нельзя редактировать числа больше ~2.1 миллиона
 - Билдер является декларативным и может вызываться несколько раз на одно пользовательское действие. Не выполняйте в нём задержки, сетевые запросы и другую тяжёлую работу
 - Порядок виджетов определяет их индексы и навигацию. Если условие меняет набор виджетов, после изменения структуры нужен `b.refresh()`
 - `menu.update(ptr)` находит виджет по указателю, переданному в его `beginRender`. Для предсказуемого обновления используйте уникальную переменную для обновляемого виджета
@@ -541,9 +541,9 @@ menu.onBuild([](gm::Builder& b) {
 - После изменения размеров дисплея `resize(cols, rows)` сбрасывает навигацию в корень
 
 ### Ввод текста
-Виджет `EditStr` работает следующим образом:
-- `EditStr` использует стандартный алфавит библиотеки: 0-9 A-Z a-z символы. Можно передать внешний алфавит
-- `EditASCII` "легче" и использует чистую таблицу ASCII, без хранения алфавита
+Виджет `Text` работает следующим образом:
+- `Text` использует стандартный алфавит библиотеки: 0-9 A-Z a-z символы. Можно передать внешний алфавит
+- `TextASCII` "легче" и использует чистую таблицу ASCII, без хранения алфавита
 - Буфер должен иметь размер минимум `maxLen + 1` для завершающего `\0`
 - Длину строки можно менять только справа - нужно поставить курсор на последнюю позицию, за строку: `foo>`. Если нажать "вниз" - строка укоротится на один символ, если "вверх" - будет добавлен новый символ перед курсором
 
@@ -554,7 +554,7 @@ menu.onBuild([](gm::Builder& b) {
 int vali;
 
 menu.onBuild([](gm::Builder& b) {
-    b.EditInt<int>("EditInt", &vali, -100, 100, encb.fast() ? 10 : 1);
+    b.Int<int>("Int", &vali, -100, 100, encb.fast() ? 10 : 1);
 });
 ```
 
@@ -563,8 +563,6 @@ menu.onBuild([](gm::Builder& b) {
 <a id="custom-widgets"></a>
 
 ### Свои виджеты
-Встроенные значения разделены по поведению: `Value*` - только отображение, `Edit*` - редактирование.
-
 Системные виджеты построены на том же API, который доступен пользователю. Минимальный виджет обычно состоит из `beginWidget()`, обработки `getAction()` и `beginRender()`:
 
 - `beginRender(var)` - виджет рисует строку самостоятельно

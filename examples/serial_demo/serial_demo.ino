@@ -50,11 +50,11 @@ void setup() {
     menu.onBuild([](gm::Builder& b) {
         b.Button("Button", []() { Serial.println("click!"); });
         b.Switch("Switch", &sw, [](bool v) { Serial.println(v); });
-        b.ValueStr("ValueStr", "foo");
+        b.ValueText("ValueText", "foo");
         b.Label("Some line");
         b.Select("Select", &sel, "abc;123;test", [](uint8_t n, const char* str, uint8_t len) { Serial.write(str, len); });
-        b.EditInt<int>("EditInt", &vali, -10, 10, 2, "%", [](int v) { Serial.println(v); });
-        b.EditFloat("EditFloat", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
+        b.Int<int>("Int", &vali, -10, 10, 2, "%", [](int v) { Serial.println(v); });
+        b.Float("Float", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
     });
 
     menu.setRefreshFull();

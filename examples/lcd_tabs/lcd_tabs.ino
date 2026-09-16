@@ -65,15 +65,15 @@ void setup() {
                 break;
 
             case 1:
-                b.ValueStr("label", "value 1");
-                b.ValueStr("label", "value 2");
-                b.ValueStr("label", "value 3");
-                b.ValueStr("label", "value 4");
+                b.ValueText("label", "value 1");
+                b.ValueText("label", "value 2");
+                b.ValueText("label", "value 3");
+                b.ValueText("label", "value 4");
                 break;
 
             case 2:
-                b.EditInt("int 1", &val, -10, 10, 2);
-                b.EditInt("int 2", &val, -10, 10, 2);
+                b.Int("int 1", &val, -10, 10, 2);
+                b.Int("int 2", &val, -10, 10, 2);
                 break;
 
             case 3:

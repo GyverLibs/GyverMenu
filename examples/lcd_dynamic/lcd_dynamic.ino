@@ -63,7 +63,7 @@ void setup() {
         if (b.Switch("Labels", &lbls)) b.refresh();
         if (lbls) {
             for (int i = 0; i < 5; i++) {
-                b.ValueStr(String16("ValueStr ") + i, String16("kek") + (i * 10));
+                b.ValueText(String16("ValueText ") + i, String16("kek") + (i * 10));
             }
         }
     });
