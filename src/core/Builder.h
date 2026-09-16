@@ -842,18 +842,27 @@ class Builder {
     bool EditInt(const __FlashStringHelper* label, T* var, T minv, T maxv, T step, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(unit, unit_s);
-        return _editNum(label_s, var, minv, maxv, step, 10, unit_s, cb);
+        return EditInt(label_s, var, minv, maxv, step, unit_s, cb);
     }
 
     template <typename T>
     bool EditInt(const String& label, T* var, T minv, T maxv, T step, const String& unit, void (*cb)(T v) = nullptr) {
-        return _editNum(label.c_str(), var, minv, maxv, step, 10, unit.c_str(), cb);
+        return EditInt(label.c_str(), var, minv, maxv, step, unit.c_str(), cb);
     }
 #endif
 
     template <typename T>
     bool EditInt(const char* label, T* var, T minv, T maxv, T step, const char* unit = "", void (*cb)(T v) = nullptr) {
-        return _editNum(label, var, minv, maxv, step, 10, unit, cb);
+        int32_t value = *var;
+
+        bool changed = _editNum<int32_t>(label, &value, (int32_t)minv, (int32_t)maxv, (int32_t)step, 10, unit, nullptr, var);
+
+        if (changed) {
+            *var = (T)value;
+            if (cb) cb(*var);
+        }
+
+        return changed;
     }
 
     // =================== EDIT_FLOAT ===================
@@ -863,16 +872,16 @@ class Builder {
     bool EditFloat(const __FlashStringHelper* label, float* var, float minv, float maxv, float step, uint8_t dec, const __FlashStringHelper* unit, void (*cb)(float v) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(unit, unit_s);
-        return _editNum(label_s, var, minv, maxv, step, dec, unit_s, cb);
+        return EditFloat(label_s, var, minv, maxv, step, dec, unit_s, cb);
     }
 
     bool EditFloat(const String& label, float* var, float minv, float maxv, float step, uint8_t dec, const String& unit, void (*cb)(float v) = nullptr) {
-        return _editNum(label.c_str(), var, minv, maxv, step, dec, unit.c_str(), cb);
+        return EditFloat(label.c_str(), var, minv, maxv, step, dec, unit.c_str(), cb);
     }
 #endif
 
     bool EditFloat(const char* label, float* var, float minv, float maxv, float step, uint8_t dec = 2, const char* unit = "", void (*cb)(float v) = nullptr) {
-        return _editNum(label, var, minv, maxv, step, dec, unit, cb);
+        return _editNum<float>(label, var, minv, maxv, step, dec, unit, cb);
     }
 
     // =================== MISC ===================
@@ -1102,7 +1111,7 @@ class Builder {
 #endif
 
     template <typename T>
-    bool _editNum(const char* label, T* var, T minv, T maxv, T step, uint8_t dec_base, const char* unit = "", void (*cb)(T v) = nullptr) {
+    bool _editNum(const char* label, T* var, T minv, T maxv, T step, uint8_t dec_base, const char* unit = "", void (*cb)(T v) = nullptr, const void* targetVar = nullptr) {
         if (!beginWidget()) return false;
         bool changed = false;
         bool render = false;
@@ -1141,7 +1150,7 @@ class Builder {
         }
 
         if (changed && cb) cb(*var);
-        if (render && beginRender(var, label)) _printVar(var, dec_base, unit);
+        if (render && beginRender(targetVar ? targetVar : var, label)) _printVar(var, dec_base, unit);
 
         return changed;
     }
