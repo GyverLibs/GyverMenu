@@ -135,7 +135,7 @@ bool Button(Str label, void (*cb)() = nullptr);
 void Label(Str line);
 
 // display-only
-void ValueStr(Str label, const char* var);
+void ValueText(Str label, const char* var);
 void ValueInt(Str label, const T* var, uint8_t base = 10, Str unit = "");
 void ValueFloat(Str label, const float* var, uint8_t dec = 2, Str unit = "");
 
@@ -150,19 +150,19 @@ bool Tabs(uint8_t* var, Str tabs, void (*cb)(uint8_t n, const char* str, uint8_t
 
 // editable
 template <typename T>
-bool EditInt(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T v) = nullptr);
+bool Int(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T v) = nullptr);
 
 // float-value
-bool EditFloat(Str label, float* var, float minv, float maxv, float step, uint8_t dec = 2, Str unit = "", void (*cb)(float v) = nullptr);
+bool Float(Str label, float* var, float minv, float maxv, float step, uint8_t dec = 2, Str unit = "", void (*cb)(float v) = nullptr);
 
 // editing a line from an embedded or user alphabet
 // var buffer must have a minimum size of maxLen + 1
-bool EditStr(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
-bool EditStr(Str label, char* var, uint8_t maxLen, Str alphabet, void (*cb)(const char* str) = nullptr);
+bool Text(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
+bool Text(Str label, char* var, uint8_t maxLen, Str alphabet, void (*cb)(const char* str) = nullptr);
 
-// editing of printed ASCII characters 32..126
+// line editing throughout the ASCII table
 // var buffer must have a minimum size of maxLen + 1
-bool EditASCII(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
+bool TextASCII(Str label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr);
 
 // time, T is a structure with fields .second, .minute, .hour or built-in gm::Time
 template <typename T>
@@ -279,7 +279,7 @@ void setup() {
 
     menu.onBuild([](gm::Builder& b) {
         b.Switch("Power", &sw);
-        b.EditInt("Value", &value, 0, 100, 1);
+        b.Int("Value", &value, 0, 100, 1);
     });
 
     menu.refresh();
@@ -524,11 +524,47 @@ menu.onBuild([](gm::Builder& b) {
 });
 ```
 
+<a id="limits"></a>
+
+### Limitations and features
+- If the value does not fit into the display, an ellipsis will be displayed instead.
+- `Int`inside working`int32_t`a value, so you cannot edit a number greater than ~2.1 million
+- The builder is declarative and can be called several times per user action. Do not perform delays, network requests and other heavy work.
+- The order of widgets determines their indexes and navigation. If the condition changes the set of widgets, after changing the structure, you need to`b.refresh()`
+- `menu.update(ptr)`Find the widget by the pointer transmitted to it`beginRender`. For a predictable update, use a unique variable for the updated widget.
+- `Part`requires connected`onCursor`. Without it, partial positioning is impossible.
+- `beginRender(var, label)`It is assumed that the variable area is after`label`The first output is executed in its entirety, the following changes of the selected widget can only update the value area.
+- For right alignment, call in`prepareRight(width)`with the actual width of the output area. If there is a shortage of space, it will be removed.`ovf`
+- `markerSize`is equal to one column by default. For renderer without a separate cursor symbol, call`setMarkerSize(false)`
+- `Time`The structure must have fields`hour`, `minute`, `second`, `Date` - `day`, `month`, `year`
+- `Bitmask`: `bits`limited by the size of the variable type
+- `GM_NO_PAGES`Disables pages and reduces library size
+- `GM_NO_PART`Disables partial output of the variable widget area. Quick update of the marker when navigating in mode`Part`persistence
+- After resizing the display`resize(cols, rows)`drops navigation to the root
+
+### Introduction of text
+widget`Text`works as follows:
+- `Text`The library uses a standard alphabet: 0-9 A-Z a-z characters. You can transfer the external alphabet.
+- `TextASCII`"lighter" and uses a blank ASCII table, no alphabet storage
+- The buffer must have a minimum size.`maxLen + 1`final`\0`
+- The length of the line can be changed only on the right - you need to put the cursor on the last position, behind the line:`foo>`. If you press "down" - the line will be shortened by one character, if "up" - a new character will be added in front of the cursor.
+
+#### Tricks.
+In widgets with step adjustment, the step can be set dynamically, for example, from the speed of rotation of the encoder. With the EncButton or uEncoder library, it might look like this:
+
+```cpp
+int vali;
+
+menu.onBuild([](gm::Builder& b) {
+    b.Int<int>("Int", &vali, -100, 100, encb.fast() ? 10 : 1);
+});
+```
+
+That is, with a fast rotation of the encoder, the step will be 10 (rough), and with a slow one - 1 (exact). The builder is called at each action of changing the value, so the step will be selected for each click.
+
 <a id="custom-widgets"></a>
 
 ### Their widgets.
-Built-in values are divided by behavior:`Value*`- just the display,`Edit*`- editing.
-
 System widgets are built on the same API that is available to the user. The minimum widget usually consists of`beginWidget()`processing`getAction()`and`beginRender()`:
 
 - `beginRender(var)`The widget draws a line on its own
@@ -604,43 +640,6 @@ if (b.beginRender(var, label) && b.prepareRight(valueWidth)) {
 ```
 
 For a fully graphical widget, use`beginRender(var)`without`label`And draw directly into your display.`beginRender()`anyway`onState`Therefore, renderer gets relevant`selected/editing`.
-
-<a id="limits"></a>
-
-### Limitations and features
-- If the value does not fit into the display, an ellipsis will be displayed instead.
-- The builder is declarative and can be called several times per user action. Do not perform delays, network requests and other heavy work.
-- The order of widgets determines their indexes and navigation. If the condition changes the set of widgets, after changing the structure, you need to`b.refresh()`
-- `menu.update(ptr)`Find the widget by the pointer transmitted to it`beginRender`. For a predictable update, use a unique variable for the updated widget.
-- `Part`requires connected`onCursor`. Without it, partial positioning is impossible.
-- `beginRender(var, label)`It is assumed that the variable area is after`label`The first output is executed in its entirety, the following changes of the selected widget can only update the value area.
-- For right alignment, call in`prepareRight(width)`with the actual width of the output area. If there is a shortage of space, it will be removed.`ovf`
-- `markerSize`is equal to one column by default. For renderer without a separate cursor symbol, call`setMarkerSize(false)`
-- `Time`The structure must have fields`hour`, `minute`, `second`, `Date` - `day`, `month`, `year`
-- `Bitmask`: `bits`limited by the size of the variable type
-- `GM_NO_PAGES`Disables pages and reduces library size
-- `GM_NO_PART`Disables partial output of the variable widget area. Quick update of the marker when navigating in mode`Part`persistence
-- After resizing the display`resize(cols, rows)`drops navigation to the root
-
-### Introduction of text
-widget`EditStr`works as follows:
-- `EditStr`The library uses a standard alphabet: 0-9 A-Z a-z characters. You can transfer the external alphabet.
-- `EditASCII`"lighter" and uses a blank ASCII table, no alphabet storage
-- The buffer must have a minimum size.`maxLen + 1`final`\0`
-- The length of the line can be changed only on the right - you need to put the cursor on the last position, behind the line:`foo>`. If you press "down" - the line will be shortened by one character, if "up" - a new character will be added in front of the cursor.
-
-#### Tricks.
-In widgets with step adjustment, the step can be set dynamically, for example, from the speed of rotation of the encoder. With the EncButton or uEncoder library, it might look like this:
-
-```cpp
-int vali;
-
-menu.onBuild([](gm::Builder& b) {
-    b.EditInt<int>("EditInt", &vali, -100, 100, encb.fast() ? 10 : 1);
-});
-```
-
-That is, with a fast rotation of the encoder, the step will be 10 (rough), and with a slow one - 1 (exact). The builder is called at each action of changing the value, so the step will be selected for each click.
 
 ### Examples
 In a file.`examples`There are some examples for:
