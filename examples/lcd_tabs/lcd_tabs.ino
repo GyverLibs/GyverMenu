@@ -14,7 +14,7 @@ class uButton {
         if (f != !digitalRead(pin)) {
             f ^= 1;
             delay(10);
-            if (f) return true;
+            return f;
         }
         return false;
     }
