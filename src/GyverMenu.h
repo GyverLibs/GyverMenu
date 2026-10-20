@@ -158,6 +158,11 @@ class GyverMenu {
         setRefreshMode(fast ? gm::RefreshMode::Part : gm::RefreshMode::Row);
     }
 
+    // id текущей страницы
+    uint8_t pageID() {
+        return _menu.pageID();
+    }
+
     // MARK: private
    private:
     gm::Menu _menu;

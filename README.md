@@ -103,6 +103,9 @@ uint8_t getWidgetIndex();
 // режим редактирования
 bool isEditing();
 void cancelEdit();
+
+// id текущей страницы
+uint8_t pageID();
 ```
 
 ### gm::Builder

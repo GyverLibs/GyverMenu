@@ -12,7 +12,7 @@
 
 #define GM_PROGMEM PROGMEM
 #define GM_PGM_READ(ptr) ((char)pgm_read_byte(ptr))
-#define GM_PGM_FIND(str, c) strchr_P(str, c)
+#define GM_PGM_FIND(str, c) gmutil::findChar_P(str, c)
 #define GM_PGM_LEN(str) strlen_P(str)
 
 #define GM_READ_PGM(fstr, str)                 \
@@ -29,6 +29,8 @@
 #endif
 
 namespace gmutil {
+
+const char* findChar_P(const char* str, char c);
 
 uint8_t countSub(const char* str, char div);
 

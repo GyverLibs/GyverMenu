@@ -205,6 +205,11 @@ class Menu {
         return pages.current().row;
     }
 
+    // id текущей страницы
+    uint8_t pageID() {
+        return pages.current().id;
+    }
+
     // зарегистрировать виджет текущей страницы
     bool registerWidget() {
         if (!pages.target) return false;

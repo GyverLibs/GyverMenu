@@ -2,6 +2,15 @@
 
 namespace gmutil {
 
+const char* findChar_P(const char* str, char c) {
+    for (;;) {
+        char ch = GM_PGM_READ(str);
+        if (ch == c) return str;
+        if (!ch) return nullptr;
+        ++str;
+    }
+}
+
 uint8_t countSub(const char* str, char div) {
     uint8_t res = 1;
     while (*str) {
