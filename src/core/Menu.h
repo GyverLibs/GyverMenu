@@ -92,7 +92,7 @@ class Menu {
 
     // виджет выбран курсором
     bool isChosen() {
-        return index() == len;
+        return chosenID() == len;
     }
 
     // виджет в видимой области экрана
@@ -100,9 +100,19 @@ class Menu {
         return len >= scroll() && len < scroll() + rows;
     }
 
-    // получить текущий номер виджета
-    uint8_t getWidgetIndex() {
+    // порядковый номер текущего виджета
+    uint8_t currentID() {
         return len;
+    }
+
+    // порядковый номер выбранного виджета
+    uint8_t chosenID() {
+        return scroll() + row();
+    }
+
+    // id текущей страницы
+    uint8_t pageID() {
+        return pages.current().id;
     }
 
     // =====================================================
@@ -203,11 +213,6 @@ class Menu {
     // ссылка на выбранную строку текущей страницы
     uint8_t& row() {
         return pages.current().row;
-    }
-
-    // id текущей страницы
-    uint8_t pageID() {
-        return pages.current().id;
     }
 
     // зарегистрировать виджет текущей страницы
@@ -330,11 +335,6 @@ class Menu {
         printer(0, 0);
     }
 
-    // порядковый номер текущего виджета в списке
-    uint8_t index() {
-        return scroll() + row();
-    }
-
     // очистка нижних линий (вызов в конце билдера)
     void clearBottom() {
         uint8_t clr = 0;
@@ -354,7 +354,7 @@ class Menu {
 
     // проверка выхода индекса за список (вызов в конце билдера)
     bool checkOverflow() {
-        if (index() < len) return false;
+        if (chosenID() < len) return false;
         scroll() = row() = 0;
         resetPart();
         return true;
@@ -363,13 +363,13 @@ class Menu {
     // двигать строку. Вернёт true, если сдвинулся экран
     bool move(bool up) {
         if (up) {
-            if (index()) {
+            if (chosenID()) {
                 resetPart();
                 if (row()) --row();
                 else return --scroll(), true;
             }
         } else {
-            if (index() != len - 1) {
+            if (chosenID() != len - 1) {
                 resetPart();
                 if (row() < rows - 1) ++row();
                 else return ++scroll(), true;

@@ -98,7 +98,7 @@ void setRefreshRow();   // вся строка
 void setRefreshPart();  // частичное обновление
 
 // получить текущий номер виджета
-uint8_t getWidgetIndex();
+uint8_t currentID();
 
 // режим редактирования
 bool isEditing();
@@ -106,6 +106,9 @@ void cancelEdit();
 
 // id текущей страницы
 uint8_t pageID();
+
+// порядковый номер выбранного виджета
+uint8_t chosenID();
 ```
 
 ### gm::Builder

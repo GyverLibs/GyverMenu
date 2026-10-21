@@ -115,8 +115,8 @@ class GyverMenu {
     }
 
     // получить текущий номер виджета
-    uint8_t getWidgetIndex() {
-        return _menu.getWidgetIndex();
+    uint8_t currentID() {
+        return _menu.currentID();
     }
 
     // находится ли текущий виджет в режиме редактирования
@@ -161,6 +161,11 @@ class GyverMenu {
     // id текущей страницы
     uint8_t pageID() {
         return _menu.pageID();
+    }
+
+    // порядковый номер выбранного виджета
+    uint8_t chosenID() {
+        return _menu.chosenID();
     }
 
     // MARK: private
