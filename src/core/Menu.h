@@ -30,8 +30,9 @@ class Menu {
         if (!left) return;
         if (!letters) letters = len;
 
-        if (len > left) len = left;
-        if (letters > left) letters = left;
+        if (letters > left) {
+            len = gmutil::strlenU(str, &letters, len, left);
+        }
 
         printer(str, len);
         left -= letters;

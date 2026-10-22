@@ -29,21 +29,14 @@ uint8_t getSub(const char* str, char div, uint8_t n, const char** start) {
     return len;
 }
 
-uint8_t strlenU(const char* str, uint8_t* letters) {
+uint8_t strlenU(const char* str, uint8_t* letters, uint8_t maxBytes, uint8_t maxLetters) {
     uint8_t len = 0;
     *letters = 0;
-    while (*str) {
-        if ((*str & 0xc0) != 0x80) ++*letters;
-        ++len;
-        ++str;
-    }
-    return len;
-}
-uint8_t strlenU(const char* str, uint8_t* letters, uint8_t maxlen) {
-    uint8_t len = 0;
-    *letters = 0;
-    while (*str && len < maxlen) {
-        if ((*str & 0xc0) != 0x80) ++*letters;
+    while (*str && len < maxBytes) {
+        if ((*str & 0xc0) != 0x80) {
+            if (*letters >= maxLetters) break;
+            ++*letters;
+        }
         ++str;
         ++len;
     }

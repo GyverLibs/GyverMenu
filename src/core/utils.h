@@ -36,9 +36,7 @@ uint8_t countSub(const char* str, char div);
 
 uint8_t getSub(const char* str, char div, uint8_t n, const char** start);
 
-uint8_t strlenU(const char* str, uint8_t* letters);
-
-uint8_t strlenU(const char* str, uint8_t* letters, uint8_t maxlen);
+uint8_t strlenU(const char* str, uint8_t* letters, uint8_t maxBytes = UINT8_MAX, uint8_t maxLetters = UINT8_MAX);
 
 void _dummyRender(const char*, size_t);
 
