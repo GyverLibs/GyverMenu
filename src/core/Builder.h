@@ -382,6 +382,7 @@ class Builder {
 
 // =================== SELECT ===================
 // MARK: select
+/*
 #ifdef ARDUINO
     bool Select(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
         GM_READ_PGM(label, label_s);
@@ -433,6 +434,77 @@ class Builder {
         const char* start = nullptr;
         uint8_t len = 0;
         if (changed || render) len = gmutil::getSub(opts, ';', *var, &start);
+
+        if (changed && cb) cb(*var, start, len);
+
+        if (render && beginRender(var, label)) {
+            uint8_t letters;
+            gmutil::strlenU(start, &letters, len);
+
+            if (prepareRight(letters + 2)) {
+                menu.print('<');
+                menu.print(start, len, letters);
+                menu.print(menu.marker);
+            }
+        }
+
+        return changed;
+    }
+*/
+
+// MARK: select ext
+#ifdef ARDUINO
+    bool Select(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        GM_READ_PGM(label, label_s);
+        GM_READ_PGM(opts, opts_s);
+        return Select(label_s, var, opts_s, cb);
+    }
+
+    bool Select(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        return Select(label.c_str(), var, opts.c_str(), cb);
+    }
+#endif
+
+    bool Select(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        if (!beginWidget()) return false;
+        bool changed = false;
+        bool render = false;
+
+        switch (getAction()) {
+            case Action::Refresh:
+                render = true;
+                break;
+
+            case Action::Set:
+                menu.toggle();
+                render = true;
+                break;
+
+            case Action::SetUp:
+            case Action::Right:
+            case Action::SetDown:
+            case Action::Left: {
+                uint8_t next;
+                bool forward = _action == Action::SetUp || _action == Action::Right;
+                if (_selectFind(opts, *var, forward, next)) {
+                    *var = next;
+                    render = changed = true;
+                    change();
+                }
+            } break;
+
+            default: break;
+        }
+
+        const char* start = "";
+        uint8_t len = 0;
+        if (changed || render) {
+            len = gmutil::getSub(opts, ';', *var, &start);
+            if (len && *start == '~') {
+                start = "";
+                len = 0;
+            }
+        }
 
         if (changed && cb) cb(*var, start, len);
 
@@ -961,16 +1033,11 @@ class Builder {
         return true;
     }
 
-    // подготовить правое выравнивание, вывести ovf если места нет
+    // подготовить правое выравнивание, при нехватке места обрезать вывод с ".."
     bool prepareRight(uint8_t width) {
         if (menu.left < width) {
-            menu.padEnd(2);
-            menu.print('.');
-            menu.print('.');
-#ifndef GM_NO_PART
-            if (_action != Action::Refresh) menu.prevLen = -1;
-#endif
-            return false;
+            menu.reserveEllipsis();
+            return menu.left > 0;
         }
 
 #ifndef GM_NO_PART
@@ -1010,6 +1077,35 @@ class Builder {
 #endif
     bool _refresh = false;
     bool _changed = false;
+
+    // найти ближайший доступный пункт Select без изменения исходного индекса
+    static bool _selectFind(const char* opts, uint8_t current, bool forward, uint8_t& result) {
+        uint8_t count = gmutil::countSub(opts, ';');
+        if (forward) {
+            if (current >= count - 1) return false;
+        } else {
+            if (!current) return false;
+            if (current > count) current = count;
+        }
+
+        uint8_t i = forward ? current + 1 : current - 1;
+        for (;;) {
+            const char* str;
+            uint8_t len = gmutil::getSub(opts, ';', i, &str);
+            if (!len || *str != '~') {
+                result = i;
+                return true;
+            }
+
+            if (forward) {
+                if (++i >= count) break;
+            } else {
+                if (!i) break;
+                --i;
+            }
+        }
+        return false;
+    }
 
     // ограничить значение диапазоном с циклическим переходом
     static int _clampRing(int v, int minv, int maxv) {

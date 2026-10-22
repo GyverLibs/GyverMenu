@@ -20,9 +20,15 @@ class Menu {
     // печатать в onPrint
     void print(char c) {
         if (!left) return;
+        uint8_t ellipsis = _ellipsisSize();
+        if (ellipsis && left <= ellipsis) {
+            _printEllipsis();
+            return;
+        }
 
         printer(&c, 1);
         --left;
+        if (ellipsis && left == ellipsis) _printEllipsis();
     }
 
     // печатать в onPrint
@@ -30,12 +36,19 @@ class Menu {
         if (!left) return;
         if (!letters) letters = len;
 
-        if (letters > left) {
-            len = gmutil::strlenU(str, &letters, len, left);
+        uint8_t ellipsis = _ellipsisSize();
+        if (!ellipsis && letters > left) {
+            reserveEllipsis();
+            ellipsis = _ellipsisSize();
+        }
+        uint8_t room = left - ellipsis;
+        if (letters > room) {
+            len = gmutil::strlenU(str, &letters, len, room);
         }
 
         printer(str, len);
         left -= letters;
+        if (ellipsis && left == ellipsis) _printEllipsis();
     }
 
     // печатать в onPrint
@@ -138,6 +151,8 @@ class Menu {
     bool markerSize = true;
 #ifndef GM_NO_PART
     int8_t prevLen = -1;
+#else
+    uint8_t _ellipsis = 0;
 #endif
 
 #ifndef GM_NO_PAGES
@@ -302,6 +317,7 @@ class Menu {
         if (row >= rows) return false;
         if (col > cols) col = cols;
 
+        _clearEllipsis();
         left = cols - col;
         if (!cursor) return false;
 
@@ -329,6 +345,43 @@ class Menu {
     // включён ли полный рендер экрана
     bool useFull() {
         return updateMode == RefreshMode::Full;
+    }
+
+    // зарезервировать конец текущей области под признак обрезки
+    void reserveEllipsis() {
+        uint8_t ellipsis = left > 2 ? 2 : left;
+#ifndef GM_NO_PART
+        prevLen = -1 - ellipsis;
+#else
+        _ellipsis = ellipsis;
+#endif
+    }
+
+    // допечатать зарезервированный признак обрезки
+    void _printEllipsis() {
+        uint8_t ellipsis = _ellipsisSize();
+        while (ellipsis-- && left) {
+            char dot = '.';
+            printer(&dot, 1);
+            --left;
+        }
+        _clearEllipsis();
+    }
+
+    uint8_t _ellipsisSize() {
+#ifndef GM_NO_PART
+        return prevLen < -1 ? -prevLen - 1 : 0;
+#else
+        return _ellipsis;
+#endif
+    }
+
+    void _clearEllipsis() {
+#ifndef GM_NO_PART
+        if (prevLen < -1) prevLen = -1;
+#else
+        _ellipsis = 0;
+#endif
     }
 
     // вызвать onPrint(0)

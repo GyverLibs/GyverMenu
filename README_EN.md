@@ -142,7 +142,7 @@ void ValueFloat(Str label, const float* var, uint8_t dec = 2, Str unit = "");
 // switcher
 bool Switch(Str label, bool* var, void (*cb)(bool v) = nullptr);
 
-// Item selection. opts is a line with a separator ';'
+// selection that preserves indexes and skips items beginning with '~'
 bool Select(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
 // Selection of the item in the style of "tabs". tabs - a line with a separator ';'
@@ -206,7 +206,7 @@ Action getAction();
 // start rendering the widget; with the label library serves the signature and part
 bool beginRender(const void* targetVar = nullptr, const char* label = nullptr);
 
-// align further output to the right on the width of the characters, with a lack of space output "ovf"
+// right-align the following output to width; truncate with ".." if it does not fit
 bool prepareRight(uint8_t width);
 
 // Raise the change flag (affects wasSet())
@@ -527,14 +527,14 @@ menu.onBuild([](gm::Builder& b) {
 <a id="limits"></a>
 
 ### Limitations and features
-- If the value does not fit into the display, an ellipsis will be displayed instead.
+- If a string does not fit into the available area, its beginning is preserved and the last one or two columns contain `.` or `..`.
 - `Int`inside working`int32_t`a value, so you cannot edit a number greater than ~2.1 million
 - The builder is declarative and can be called several times per user action. Do not perform delays, network requests and other heavy work.
 - The order of widgets determines their indexes and navigation. If the condition changes the set of widgets, after changing the structure, you need to`b.refresh()`
 - `menu.update(ptr)`Find the widget by the pointer transmitted to it`beginRender`. For a predictable update, use a unique variable for the updated widget.
 - `Part`requires connected`onCursor`. Without it, partial positioning is impossible.
 - `beginRender(var, label)`It is assumed that the variable area is after`label`The first output is executed in its entirety, the following changes of the selected widget can only update the value area.
-- For right alignment, call in`prepareRight(width)`with the actual width of the output area. If there is a shortage of space, it will be removed.`ovf`
+- For right alignment, call `prepareRight(width)` with the actual output width. If there is not enough room, the following output is truncated and ends with `..`.
 - `markerSize`is equal to one column by default. For renderer without a separate cursor symbol, call`setMarkerSize(false)`
 - `Time`The structure must have fields`hour`, `minute`, `second`, `Date` - `day`, `month`, `year`
 - `Bitmask`: `bits`limited by the size of the variable type
@@ -569,7 +569,7 @@ System widgets are built on the same API that is available to the user. The mini
 
 - `beginRender(var)`The widget draws a line on its own
 - `beginRender(var, label)`The library maintains the label and, where possible, uses it.`Part`field
-- `prepareRight(width)`- aligns further output to the right and remembers the width of the area for subsequent`Part`
+- `prepareRight(width)` - right-aligns the following output and remembers its width for subsequent `Part` updates; when space is insufficient, it preserves as much of the value prefix as possible and appends `..`.
 
 Example of a simple numerical widget with a 2-character block and support`update(&var)`/`Part`:
 ```cpp
