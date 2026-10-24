@@ -134,20 +134,21 @@ class Builder {
         return Alert(id, title.c_str(), button.c_str(), cb);
     }
 
-    int8_t Confirm(uint8_t id, const __FlashStringHelper* title, const __FlashStringHelper* buttons, void (*cb)(bool result) = nullptr) {
+    int8_t Confirm(uint8_t id, const __FlashStringHelper* title, const __FlashStringHelper* first, const __FlashStringHelper* second, void (*cb)(bool result) = nullptr) {
         GM_READ_PGM(title, title_s);
-        GM_READ_PGM(buttons, buttons_s);
-        return Confirm(id, title_s, buttons_s, cb);
+        GM_READ_PGM(first, first_s);
+        GM_READ_PGM(second, second_s);
+        return Confirm(id, title_s, first_s, second_s, cb);
     }
 
-    int8_t Confirm(uint8_t id, const String& title, const String& buttons, void (*cb)(bool result) = nullptr) {
-        return Confirm(id, title.c_str(), buttons.c_str(), cb);
+    int8_t Confirm(uint8_t id, const String& title, const String& first, const String& second, void (*cb)(bool result) = nullptr) {
+        return Confirm(id, title.c_str(), first.c_str(), second.c_str(), cb);
     }
 #endif
 
     // окно с одной кнопкой. true возвращается один раз при подтверждении
     bool Alert(uint8_t id, const char* title, const char* button = "OK", void (*cb)() = nullptr) {
-        bool result = _popup(id, title, button, false) >= 0;
+        bool result = _popup(id, title, button, nullptr) >= 0;
         if (result && cb) cb();
         return result;
     }
@@ -156,9 +157,9 @@ class Builder {
         return Alert(id, title, "OK", cb);
     }
 
-    // окно с двумя кнопками через ';'. -1 нет выбора, 0/1 - выбранная кнопка
-    int8_t Confirm(uint8_t id, const char* title, const char* buttons, void (*cb)(bool result) = nullptr) {
-        int8_t result = _popup(id, title, buttons, true);
+    // окно с двумя кнопками. -1 нет выбора, 0/1 - выбранная кнопка
+    int8_t Confirm(uint8_t id, const char* title, const char* first, const char* second, void (*cb)(bool result) = nullptr) {
+        int8_t result = _popup(id, title, first, second);
         if (result >= 0 && cb) cb(result);
         return result;
     }
@@ -1502,21 +1503,17 @@ class Builder {
     }
 
     // вывести кнопки popup в текущую строку
-    void _popupButtons(const char* buttons, bool confirm) {
-        const char* first;
-        uint8_t firstLen = gmutil::getSub(buttons, ';', 0, &first);
+    void _popupButtons(const char* first, const char* second) {
         uint8_t firstLetters;
-        gmutil::strlenU(first, &firstLetters, firstLen);
+        uint8_t firstLen = gmutil::strlenU(first, &firstLetters);
 
-        if (!confirm) {
+        if (!second) {
             _popupButton(first, firstLen, firstLetters);
             return;
         }
 
-        const char* second;
-        uint8_t secondLen = gmutil::getSub(buttons, ';', 1, &second);
         uint8_t secondLetters;
-        gmutil::strlenU(second, &secondLetters, secondLen);
+        uint8_t secondLen = gmutil::strlenU(second, &secondLetters);
         uint16_t width = (uint16_t)firstLetters + secondLetters + 4;
 
         if (width > menu.cols) {
@@ -1534,7 +1531,7 @@ class Builder {
     }
 
     // вывести popup сразу готовыми строками без отдельной очистки экрана
-    void _renderPopup(const char* title, const char* buttons, bool confirm) {
+    void _renderPopup(const char* title, const char* first, const char* second) {
         if (!menu.rows) return;
         uint8_t buttonRow = menu.rows == 1 ? 0 : (menu.rows - 2) / 2 + 1;
 
@@ -1548,24 +1545,24 @@ class Builder {
             if (menu.rows > 1 && row == buttonRow - 1) {
                 _popupText(title);
             } else if (row == buttonRow) {
-                _popupButtons(buttons, confirm);
+                _popupButtons(first, second);
             }
             menu.padEnd();
         }
     }
 
-    int8_t _popup(uint8_t id, const char* title, const char* buttons, bool confirm) {
+    int8_t _popup(uint8_t id, const char* title, const char* first, const char* second) {
         if (!_popupPass || menu.popup.id != id) return PopupNone;
         _popupSeen = true;
         if (_popupOpened) return PopupNone;
 
         switch (_action) {
             case Action::Refresh:
-                _renderPopup(title, buttons, confirm);
+                _renderPopup(title, first, second);
                 break;
 
             case Action::Set: {
-                int8_t result = confirm ? menu.popup.selected : 0;
+                int8_t result = second ? menu.popup.selected : 0;
                 menu.popup.close();
                 menu.resetPart();
                 refresh();
@@ -1574,7 +1571,7 @@ class Builder {
 
             case Action::SetUp:
             case Action::Left:
-                if (confirm && menu.popup.selected) {
+                if (second && menu.popup.selected) {
                     menu.popup.selected = 0;
                     refresh();
                 }
@@ -1582,7 +1579,7 @@ class Builder {
 
             case Action::SetDown:
             case Action::Right:
-                if (confirm && !menu.popup.selected) {
+                if (second && !menu.popup.selected) {
                     menu.popup.selected = 1;
                     refresh();
                 }

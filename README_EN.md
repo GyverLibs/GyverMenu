@@ -141,7 +141,7 @@ void Page(uint8_t id, Str label, const PageCb& page, bool back = true);
 // modal popup declarations. id must be non-zero and unique
 bool Alert(uint8_t id, Str title, Str button = "OK", void (*cb)() = nullptr);
 bool Alert(uint8_t id, Str title, void (*cb)());  // "OK" button
-int8_t Confirm(uint8_t id, Str title, Str buttons, void (*cb)(bool result) = nullptr);
+int8_t Confirm(uint8_t id, Str title, Str first, Str second, void (*cb)(bool result) = nullptr);
 
 // open/close a popup from the builder
 bool openPopup(uint8_t id, uint8_t selected = 0);
@@ -150,7 +150,7 @@ bool isPopup() const;
 uint8_t popupID() const;
 ```
 
-`Alert` returns `true` once when Set is pressed. `Confirm` accepts two `;`-separated buttons and returns `gm::PopupNone` (-1) until a choice is made, then returns 0 or 1 once. The optional callback runs only on confirmation: `Alert` calls `void()`, while `Confirm` passes `false` for the first and `true` for the second button. External `closePopup()` does not invoke it. Left/Up select the first option, Right/Down select the second, and Set confirms. A popup blocks the rest of the menu and restores the previous page, cursor and editing state after closing.
+`Alert` returns `true` once when Set is pressed. `Confirm` accepts the two button labels as separate arguments and returns `gm::PopupNone` (-1) until a choice is made, then returns 0 or 1 once. The optional callback runs only on confirmation: `Alert` calls `void()`, while `Confirm` passes `false` for the first and `true` for the second button. External `closePopup()` does not invoke it. Left/Up select the first option, Right/Down select the second, and Set confirms. A popup blocks the rest of the menu and restores the previous page, cursor and editing state after closing.
 
 #### Widgets
 ```cpp

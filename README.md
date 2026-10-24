@@ -141,7 +141,7 @@ void Page(uint8_t id, Str label, const PageCb& page, bool back = true);
 // декларации модальных окон. id должен быть ненулевым и уникальным
 bool Alert(uint8_t id, Str title, Str button = "OK", void (*cb)() = nullptr);
 bool Alert(uint8_t id, Str title, void (*cb)());  // кнопка "OK"
-int8_t Confirm(uint8_t id, Str title, Str buttons, void (*cb)(bool result) = nullptr);
+int8_t Confirm(uint8_t id, Str title, Str first, Str second, void (*cb)(bool result) = nullptr);
 
 // открыть/закрыть окно из билдера
 bool openPopup(uint8_t id, uint8_t selected = 0);
@@ -150,7 +150,7 @@ bool isPopup() const;
 uint8_t popupID() const;
 ```
 
-`Alert` возвращает `true` один раз при нажатии Set. `Confirm` принимает две кнопки через `;` и возвращает `gm::PopupNone` (-1), пока выбора нет, затем один раз 0 или 1. Необязательный callback вызывается только при подтверждении: `Alert` вызывает `void()`, `Confirm` передаёт `false` для первой и `true` для второй кнопки. Внешний `closePopup()` callback не вызывает. Left/Up выбирают первый вариант, Right/Down - второй, Set подтверждает. Popup блокирует остальное меню, а после закрытия восстанавливает прежнюю страницу, курсор и режим редактирования.
+`Alert` возвращает `true` один раз при нажатии Set. `Confirm` принимает подписи двух кнопок отдельными аргументами и возвращает `gm::PopupNone` (-1), пока выбора нет, затем один раз 0 или 1. Необязательный callback вызывается только при подтверждении: `Alert` вызывает `void()`, `Confirm` передаёт `false` для первой и `true` для второй кнопки. Внешний `closePopup()` callback не вызывает. Left/Up выбирают первый вариант, Right/Down - второй, Set подтверждает. Popup блокирует остальное меню, а после закрытия восстанавливает прежнюю страницу, курсор и режим редактирования.
 
 #### Виджеты
 ```cpp

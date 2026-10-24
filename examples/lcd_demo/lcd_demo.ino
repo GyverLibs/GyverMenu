@@ -68,7 +68,7 @@ void setup() {
             Serial.println("alert closed");
         });
 
-        b.Confirm(PopupConfirm, "Reset settings?", "No;Yes", [](bool answer) {
+        b.Confirm(PopupConfirm, "Reset settings?", "No", "Yes", [](bool answer) {
             Serial.print("confirm: ");
             Serial.println(answer);  // false - No, true - Yes
         });
