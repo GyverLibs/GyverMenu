@@ -1729,10 +1729,12 @@ class Builder {
 
     // вывести готовое число с единицей измерения справа
     void _printNumRow(const char* buf, uint8_t len, const char* unit) {
-        uint8_t ulen = strlen(unit);
-        if (!prepareRight(len + ulen)) return;
+        uint8_t letters;
+        uint8_t ulen = gmutil::strlenU(unit, &letters);
+        uint8_t width = letters > UINT8_MAX - len ? UINT8_MAX : len + letters;
+        if (!prepareRight(width)) return;
         menu.print(buf, len);
-        menu.print(unit, ulen);
+        menu.print(unit, ulen, letters);
     }
 
     // MARK: _editNum
