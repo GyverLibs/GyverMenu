@@ -177,10 +177,10 @@ bool Select(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char*
 bool SelectEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
 // выбор пункта на отдельной странице. Set/Right - сохранить, Left - отменить
-bool SelectPage(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+bool SelectList(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
-// SelectPage с сохранением индексов и пропуском пунктов, начинающихся с '~'
-bool SelectPageEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+// SelectList с сохранением индексов и пропуском пунктов, начинающихся с '~'
+bool SelectListEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
 // выбор пункта в стиле "вкладок". tabs - строка с разделителем ';'
 bool Tabs(uint8_t* var, Str tabs, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);

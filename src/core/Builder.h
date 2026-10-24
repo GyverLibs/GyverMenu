@@ -281,19 +281,19 @@ class Builder {
     // =================== SELECT PAGE ===================
     // MARK: select page
 #ifdef ARDUINO
-    bool SelectPage(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+    bool SelectList(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(opts, opts_s);
-        return SelectPage(label_s, var, opts_s, cb);
+        return SelectList(label_s, var, opts_s, cb);
     }
 
-    bool SelectPage(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
-        return SelectPage(label.c_str(), var, opts.c_str(), cb);
+    bool SelectList(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        return SelectList(label.c_str(), var, opts.c_str(), cb);
     }
 
 #endif
 
-    bool SelectPage(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+    bool SelectList(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
         uint8_t id = nextId();
         if (registerWidget()) {
             if (!_reachable()) return false;
@@ -374,18 +374,18 @@ class Builder {
     // =================== SELECT PAGE EX ===================
     // MARK: select page ex
 #ifdef ARDUINO
-    bool SelectPageEx(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+    bool SelectListEx(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(opts, opts_s);
-        return SelectPageEx(label_s, var, opts_s, cb);
+        return SelectListEx(label_s, var, opts_s, cb);
     }
 
-    bool SelectPageEx(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
-        return SelectPageEx(label.c_str(), var, opts.c_str(), cb);
+    bool SelectListEx(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        return SelectListEx(label.c_str(), var, opts.c_str(), cb);
     }
 #endif
 
-    bool SelectPageEx(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+    bool SelectListEx(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
         uint8_t id = nextId();
         if (registerWidget()) {
             if (!_reachable()) return false;

@@ -177,10 +177,10 @@ bool Select(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char*
 bool SelectEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
 // select an item on a separate page. Set/Right saves, Left cancels
-bool SelectPage(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+bool SelectList(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
-// SelectPage that preserves source indexes and skips items beginning with '~'
-bool SelectPageEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+// SelectList that preserves source indexes and skips items beginning with '~'
+bool SelectListEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
 // Selection of the item in the style of "tabs". tabs - a line with a separator ';'
 bool Tabs(uint8_t* var, Str tabs, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
