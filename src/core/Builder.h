@@ -14,6 +14,11 @@
 
 namespace gm {
 
+template <typename T>
+struct _typeIdentity {
+    typedef T type;
+};
+
 // MARK: Alphabet
 static const char _gmInputAlphabet[] GM_PROGMEM =
     "0123456789"
@@ -33,6 +38,10 @@ struct Date {
     uint8_t month;
     uint16_t year;
 };
+
+#ifndef GM_NO_POPUP
+static constexpr int8_t PopupNone = -1;
+#endif
 
 // MARK: builder
 class Builder {
@@ -55,20 +64,24 @@ class Builder {
 
     // выполнить полный проход обновления экрана
     void buildRefresh(BuildCb cb) {
-        buildRow(cb, -1);
-        if (isRefresh()) buildRow(cb, -1);
-        if (isRefresh()) buildRow(cb, -1);
+        buildRow(cb, UINT8_MAX);
+        if (isRefresh()) buildRow(cb, UINT8_MAX);
+        if (isRefresh()) buildRow(cb, UINT8_MAX);
         menu.endRender();
     }
 
-    // выполнить проход для отрисовки одной строки, -1 для всех видимых
-    void buildRow(BuildCb cb, int8_t targetRow) {
+    // выполнить проход для отрисовки одной строки, UINT8_MAX для всех видимых
+    void buildRow(BuildCb cb, uint8_t targetRow) {
         menu.resetPart();
         _init();
         _action = Action::Refresh;
         _targetRow = targetRow;
         _build(cb);
-        if (targetRow == -1) menu.clearBottom();
+        if (targetRow == UINT8_MAX
+#ifndef GM_NO_POPUP
+            && !_popupPass
+#endif
+        ) menu.clearBottom();
     }
 
     // найти и обновить виджет, связанный с переменной
@@ -88,6 +101,68 @@ class Builder {
         _refresh = skipRender;
         _build(cb);
     }
+
+#ifndef GM_NO_POPUP
+    // =================== POPUP ===================
+    // MARK: popup
+#ifdef ARDUINO
+    bool Alert(uint8_t id, const __FlashStringHelper* title) {
+        GM_READ_PGM(title, title_s);
+        return Alert(id, title_s);
+    }
+
+    bool Alert(uint8_t id, const __FlashStringHelper* title, void (*cb)()) {
+        GM_READ_PGM(title, title_s);
+        return Alert(id, title_s, cb);
+    }
+
+    bool Alert(uint8_t id, const __FlashStringHelper* title, const __FlashStringHelper* button, void (*cb)() = nullptr) {
+        GM_READ_PGM(title, title_s);
+        GM_READ_PGM(button, button_s);
+        return Alert(id, title_s, button_s, cb);
+    }
+
+    bool Alert(uint8_t id, const String& title) {
+        return Alert(id, title.c_str());
+    }
+
+    bool Alert(uint8_t id, const String& title, void (*cb)()) {
+        return Alert(id, title.c_str(), cb);
+    }
+
+    bool Alert(uint8_t id, const String& title, const String& button, void (*cb)() = nullptr) {
+        return Alert(id, title.c_str(), button.c_str(), cb);
+    }
+
+    int8_t Confirm(uint8_t id, const __FlashStringHelper* title, const __FlashStringHelper* buttons, void (*cb)(bool result) = nullptr) {
+        GM_READ_PGM(title, title_s);
+        GM_READ_PGM(buttons, buttons_s);
+        return Confirm(id, title_s, buttons_s, cb);
+    }
+
+    int8_t Confirm(uint8_t id, const String& title, const String& buttons, void (*cb)(bool result) = nullptr) {
+        return Confirm(id, title.c_str(), buttons.c_str(), cb);
+    }
+#endif
+
+    // окно с одной кнопкой. true возвращается один раз при подтверждении
+    bool Alert(uint8_t id, const char* title, const char* button = "OK", void (*cb)() = nullptr) {
+        bool result = _popup(id, title, button, false) >= 0;
+        if (result && cb) cb();
+        return result;
+    }
+
+    bool Alert(uint8_t id, const char* title, void (*cb)()) {
+        return Alert(id, title, "OK", cb);
+    }
+
+    // окно с двумя кнопками через ';'. -1 нет выбора, 0/1 - выбранная кнопка
+    int8_t Confirm(uint8_t id, const char* title, const char* buttons, void (*cb)(bool result) = nullptr) {
+        int8_t result = _popup(id, title, buttons, true);
+        if (result >= 0 && cb) cb(result);
+        return result;
+    }
+#endif
 
 #ifndef GM_NO_PAGES
 // =================== PAGE ===================
@@ -133,9 +208,7 @@ class Builder {
 
                 case Action::Set:
                 case Action::Right:
-                    menu.pages.open(id);
-                    menu.resetPart();
-                    refresh();
+                    openPage(id);
                     break;
 
                 default: break;
@@ -158,9 +231,7 @@ class Builder {
 
                 case Action::Set:
                 case Action::Left:
-                    menu.pages.close();
-                    menu.resetPart();
-                    refresh();
+                    closePage();
                     break;
 
                 default: break;
@@ -205,6 +276,214 @@ class Builder {
             page(*this);
             PageEnd(back);
         }
+    }
+
+    // =================== SELECT PAGE ===================
+    // MARK: select page
+#ifdef ARDUINO
+    bool SelectPage(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        GM_READ_PGM(label, label_s);
+        GM_READ_PGM(opts, opts_s);
+        return SelectPage(label_s, var, opts_s, cb);
+    }
+
+    bool SelectPage(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        return SelectPage(label.c_str(), var, opts.c_str(), cb);
+    }
+
+#endif
+
+    bool SelectPage(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        uint8_t id = nextId();
+        if (registerWidget()) {
+            if (!_reachable()) return false;
+
+            switch (getAction()) {
+                case Action::Refresh: {
+                    const char* str = "";
+                    uint8_t len = 0;
+                    uint8_t count = gmutil::countSub(opts, ';');
+                    if (*var < count) len = gmutil::getSub(opts, ';', *var, &str);
+
+                    if (beginRender(var, label)) {
+                        uint8_t letters;
+                        gmutil::strlenU(str, &letters, len);
+                        uint8_t width = letters == UINT8_MAX ? UINT8_MAX : letters + 1;
+                        if (prepareRight(width)) {
+                            menu.print(str, len, letters);
+                            menu.print(menu.marker);
+                        }
+                    }
+                } break;
+
+                case Action::Set:
+                case Action::Right: {
+                    uint8_t count = gmutil::countSub(opts, ';');
+                    openPage(id, *var < count ? *var : 0);
+                } break;
+
+                default: break;
+            }
+            return false;
+        }
+
+        if (!menu.pages.enter(id)) return false;
+
+        bool selected = false;
+        uint8_t count = gmutil::countSub(opts, ';');
+        for (uint8_t i = 0; i < count; ++i) {
+            const char* str;
+            uint8_t len = gmutil::getSub(opts, ';', i, &str);
+            if (!beginWidget()) continue;
+
+            switch (getAction()) {
+                case Action::Refresh:
+                    if (beginRender()) {
+                        uint8_t letters;
+                        gmutil::strlenU(str, &letters, len);
+                        // if (prepareRight(letters)) menu.print(str, len, letters);  // right
+                        menu.print(str, len, letters);  // left
+                        menu.padEnd();                  // left
+                    }
+                    break;
+
+                case Action::Set:
+                case Action::Right:
+                    *var = i;
+                    selected = true;
+                    change();
+                    if (cb) cb(i, str, len);
+                    closePage();
+                    break;
+
+                case Action::Left:
+                    closePage();
+                    break;
+
+                default: break;
+            }
+
+            if (isRefresh()) break;
+        }
+
+        if (menu.pages.target) _achieved = true;
+        menu.pages.leave();
+        return selected;
+    }
+
+    // =================== SELECT PAGE EX ===================
+    // MARK: select page ex
+#ifdef ARDUINO
+    bool SelectPageEx(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        GM_READ_PGM(label, label_s);
+        GM_READ_PGM(opts, opts_s);
+        return SelectPageEx(label_s, var, opts_s, cb);
+    }
+
+    bool SelectPageEx(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        return SelectPageEx(label.c_str(), var, opts.c_str(), cb);
+    }
+#endif
+
+    bool SelectPageEx(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        uint8_t id = nextId();
+        if (registerWidget()) {
+            if (!_reachable()) return false;
+
+            switch (getAction()) {
+                case Action::Refresh: {
+                    const char* str = "<";
+                    uint8_t len = 1;
+                    uint8_t count = gmutil::countSub(opts, ';');
+                    if (*var < count) {
+                        const char* current;
+                        uint8_t currentLen = gmutil::getSub(opts, ';', *var, &current);
+                        if (currentLen && *current != '~') {
+                            str = current;
+                            len = currentLen;
+                        }
+                    }
+
+                    if (beginRender(var, label)) {
+                        uint8_t letters;
+                        gmutil::strlenU(str, &letters, len);
+                        uint8_t width = letters == UINT8_MAX ? UINT8_MAX : letters + 1;
+                        if (prepareRight(width)) {
+                            menu.print(str, len, letters);
+                            menu.print(menu.marker);
+                        }
+                    }
+                } break;
+
+                case Action::Set:
+                case Action::Right: {
+                    uint8_t count = gmutil::countSub(opts, ';');
+                    uint8_t visible = 0;
+                    uint8_t chosen = 0;
+                    bool found = false;
+
+                    for (uint8_t i = 0; i < count; ++i) {
+                        const char* str;
+                        uint8_t len = gmutil::getSub(opts, ';', i, &str);
+                        if (len && *str == '~') continue;
+                        if (i == *var) {
+                            chosen = visible;
+                            found = true;
+                        }
+                        ++visible;
+                    }
+
+                    if (visible) openPage(id, found ? chosen : 0);
+                } break;
+
+                default: break;
+            }
+            return false;
+        }
+
+        if (!menu.pages.enter(id)) return false;
+
+        bool selected = false;
+        uint8_t count = gmutil::countSub(opts, ';');
+        for (uint8_t i = 0; i < count; ++i) {
+            const char* str;
+            uint8_t len = gmutil::getSub(opts, ';', i, &str);
+            if (len && *str == '~') continue;
+            if (!beginWidget()) continue;
+
+            switch (getAction()) {
+                case Action::Refresh:
+                    if (beginRender()) {
+                        uint8_t letters;
+                        gmutil::strlenU(str, &letters, len);
+                        // if (prepareRight(letters)) menu.print(str, len, letters);  // right
+                        menu.print(str, len, letters);  // left
+                        menu.padEnd();                  // left
+                    }
+                    break;
+
+                case Action::Set:
+                case Action::Right:
+                    *var = i;
+                    selected = true;
+                    change();
+                    if (cb) cb(i, str, len);
+                    closePage();
+                    break;
+
+                case Action::Left:
+                    closePage();
+                    break;
+
+                default: break;
+            }
+
+            if (isRefresh()) break;
+        }
+
+        if (menu.pages.target) _achieved = true;
+        menu.pages.leave();
+        return selected;
     }
 #endif
 
@@ -279,8 +558,8 @@ class Builder {
     void ValueText(const char* label, const char* var) {
         if (beginWidget() && getAction() == Action::Refresh && beginRender(var, label)) {
             uint8_t letters;
-            uint8_t len = gmutil::strlenU(var, &letters);
-            if (prepareRight(letters)) menu.print(var, len, letters);
+            gmutil::strlenU(var, &letters);
+            if (prepareRight(letters)) menu.print(var);
         }
     }
 
@@ -319,6 +598,36 @@ class Builder {
 
     void ValueFloat(const char* label, const float* var, uint8_t dec = 2, const char* unit = "") {
         if (beginWidget() && getAction() == Action::Refresh && beginRender(var, label)) _printVar(var, dec, unit);
+    }
+
+    // =================== VALUE NUMBER ===================
+#ifdef ARDUINO
+    template <typename T>
+    void ValueNumber(const __FlashStringHelper* label, const T* var, uint8_t base, const __FlashStringHelper* unit) {
+        ValueInt(label, var, base, unit);
+    }
+
+    void ValueNumber(const __FlashStringHelper* label, const float* var, uint8_t dec, const __FlashStringHelper* unit) {
+        ValueFloat(label, var, dec, unit);
+    }
+
+    template <typename T>
+    void ValueNumber(const String& label, const T* var, uint8_t base, const String& unit) {
+        ValueInt(label, var, base, unit);
+    }
+
+    void ValueNumber(const String& label, const float* var, uint8_t dec, const String& unit) {
+        ValueFloat(label, var, dec, unit);
+    }
+#endif
+
+    template <typename T>
+    void ValueNumber(const char* label, const T* var, uint8_t base = 10, const char* unit = "") {
+        ValueInt(label, var, base, unit);
+    }
+
+    void ValueNumber(const char* label, const float* var, uint8_t dec = 2, const char* unit = "") {
+        ValueFloat(label, var, dec, unit);
     }
 
 // =================== SWITCH ===================
@@ -382,7 +691,6 @@ class Builder {
 
 // =================== SELECT ===================
 // MARK: select
-/*
 #ifdef ARDUINO
     bool Select(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
         GM_READ_PGM(label, label_s);
@@ -450,22 +758,21 @@ class Builder {
 
         return changed;
     }
-*/
 
-// MARK: select ext
+// MARK: select ex
 #ifdef ARDUINO
-    bool Select(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+    bool SelectEx(const __FlashStringHelper* label, uint8_t* var, const __FlashStringHelper* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(opts, opts_s);
-        return Select(label_s, var, opts_s, cb);
+        return SelectEx(label_s, var, opts_s, cb);
     }
 
-    bool Select(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
-        return Select(label.c_str(), var, opts.c_str(), cb);
+    bool SelectEx(const String& label, uint8_t* var, const String& opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+        return SelectEx(label.c_str(), var, opts.c_str(), cb);
     }
 #endif
 
-    bool Select(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
+    bool SelectEx(const char* label, uint8_t* var, const char* opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr) {
         if (!beginWidget()) return false;
         bool changed = false;
         bool render = false;
@@ -744,19 +1051,15 @@ class Builder {
             uint8_t bit = bits - menu.active;
             T mask = ((T)1 << bit);
 
-            T prev = *var;
-
             if (dir > 0) {
                 *var |= mask;
             } else {
                 *var &= ~mask;
             }
 
-            if (*var != prev) {
-                changed = true;
-                change();
-                if (cb) cb(*var);
-            }
+            changed = true;
+            change();
+            if (cb) cb(*var);
         }
 
         if (beginRender(var, label) && prepareRight(bits + 1)) {
@@ -826,6 +1129,7 @@ class Builder {
     bool TextASCII(const char* label, char* var, uint8_t maxLen, void (*cb)(const char* str) = nullptr) {
         if (!beginWidget()) return false;
         if (!maxLen) return false;
+        if (maxLen == UINT8_MAX) --maxLen;
 
         uint8_t len = 0;
         while (len < maxLen && var[len]) ++len;
@@ -911,20 +1215,20 @@ class Builder {
 
 #ifdef ARDUINO
     template <typename T>
-    bool Int(const __FlashStringHelper* label, T* var, T minv, T maxv, T step, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr) {
+    bool Int(const __FlashStringHelper* label, T* var, typename _typeIdentity<T>::type minv, typename _typeIdentity<T>::type maxv, typename _typeIdentity<T>::type step, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr) {
         GM_READ_PGM(label, label_s);
         GM_READ_PGM(unit, unit_s);
         return Int(label_s, var, minv, maxv, step, unit_s, cb);
     }
 
     template <typename T>
-    bool Int(const String& label, T* var, T minv, T maxv, T step, const String& unit, void (*cb)(T v) = nullptr) {
+    bool Int(const String& label, T* var, typename _typeIdentity<T>::type minv, typename _typeIdentity<T>::type maxv, typename _typeIdentity<T>::type step, const String& unit, void (*cb)(T v) = nullptr) {
         return Int(label.c_str(), var, minv, maxv, step, unit.c_str(), cb);
     }
 #endif
 
     template <typename T>
-    bool Int(const char* label, T* var, T minv, T maxv, T step, const char* unit = "", void (*cb)(T v) = nullptr) {
+    bool Int(const char* label, T* var, typename _typeIdentity<T>::type minv, typename _typeIdentity<T>::type maxv, typename _typeIdentity<T>::type step, const char* unit = "", void (*cb)(T v) = nullptr) {
         int32_t value = *var;
 
         bool changed = _editNum<int32_t>(label, &value, (int32_t)minv, (int32_t)maxv, (int32_t)step, 10, unit, nullptr, var);
@@ -954,6 +1258,50 @@ class Builder {
 
     bool Float(const char* label, float* var, float minv, float maxv, float step, uint8_t dec = 2, const char* unit = "", void (*cb)(float v) = nullptr) {
         return _editNum<float>(label, var, minv, maxv, step, dec, unit, cb);
+    }
+
+    // =================== EDIT_NUMBER ===================
+    // MARK: edit number
+
+#ifdef ARDUINO
+    template <typename T>
+    bool Number(const __FlashStringHelper* label, T* var, typename _typeIdentity<T>::type minv, typename _typeIdentity<T>::type maxv, typename _typeIdentity<T>::type step, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr) {
+        return Int(label, var, minv, maxv, step, unit, cb);
+    }
+
+    bool Number(const __FlashStringHelper* label, float* var, float minv, float maxv, float step, const __FlashStringHelper* unit, void (*cb)(float v) = nullptr) {
+        return Float(label, var, minv, maxv, step, 2, unit, cb);
+    }
+
+    bool Number(const __FlashStringHelper* label, float* var, float minv, float maxv, float step, uint8_t dec, const __FlashStringHelper* unit, void (*cb)(float v) = nullptr) {
+        return Float(label, var, minv, maxv, step, dec, unit, cb);
+    }
+
+    template <typename T>
+    bool Number(const String& label, T* var, typename _typeIdentity<T>::type minv, typename _typeIdentity<T>::type maxv, typename _typeIdentity<T>::type step, const String& unit, void (*cb)(T v) = nullptr) {
+        return Int(label, var, minv, maxv, step, unit, cb);
+    }
+
+    bool Number(const String& label, float* var, float minv, float maxv, float step, const String& unit, void (*cb)(float v) = nullptr) {
+        return Float(label, var, minv, maxv, step, 2, unit, cb);
+    }
+
+    bool Number(const String& label, float* var, float minv, float maxv, float step, uint8_t dec, const String& unit, void (*cb)(float v) = nullptr) {
+        return Float(label, var, minv, maxv, step, dec, unit, cb);
+    }
+#endif
+
+    template <typename T>
+    bool Number(const char* label, T* var, typename _typeIdentity<T>::type minv, typename _typeIdentity<T>::type maxv, typename _typeIdentity<T>::type step, const char* unit = "", void (*cb)(T v) = nullptr) {
+        return Int(label, var, minv, maxv, step, unit, cb);
+    }
+
+    bool Number(const char* label, float* var, float minv, float maxv, float step, const char* unit = "", void (*cb)(float v) = nullptr) {
+        return Float(label, var, minv, maxv, step, 2, unit, cb);
+    }
+
+    bool Number(const char* label, float* var, float minv, float maxv, float step, uint8_t dec, const char* unit = "", void (*cb)(float v) = nullptr) {
+        return Float(label, var, minv, maxv, step, dec, unit, cb);
     }
 
     // =================== MISC ===================
@@ -988,6 +1336,36 @@ class Builder {
         _changed = false;
     }
 
+#ifndef GM_NO_POPUP
+    // открыть модальное окно. id 0 зарезервирован
+    bool openPopup(uint8_t id, uint8_t selected = 0) {
+        bool alreadyOpen = menu.popup.id == id;
+        if (!menu.popup.open(id, selected)) return false;
+        if (alreadyOpen) return true;
+        _popupOpened = true;
+        menu.resetPart();
+        _refresh = true;
+        return true;
+    }
+
+    // закрыть модальное окно без результата
+    bool closePopup() {
+        if (!menu.isPopup()) return false;
+        menu.popup.close();
+        menu.resetPart();
+        _refresh = true;
+        return true;
+    }
+
+    bool isPopup() const {
+        return menu.isPopup();
+    }
+
+    uint8_t popupID() const {
+        return menu.popupID();
+    }
+#endif
+
     // ===================== API =====================
     // MARK: api
 
@@ -1009,7 +1387,7 @@ class Builder {
     // начать вывод виджета, с label - изменяемой части после него
     bool beginRender(const void* targetVar = nullptr, const char* label = nullptr) {
         if (_action != Action::Refresh && _refresh) return false;
-        if (_targetRow >= 0 && _targetRow != menu.row()) return false;
+        if (_targetRow != UINT8_MAX && _targetRow != menu.currentRow()) return false;
 
         if (_targetVar) {
             if (_targetVar != targetVar) return false;
@@ -1020,8 +1398,10 @@ class Builder {
         if (label && _action != Action::Refresh && menu.prevLen >= 0 && menu.usePart()) {
             uint8_t letters;
             gmutil::strlenU(label, &letters);
-            menu.setPos(menu.markerSize + letters + menu.isActive());
-            return true;
+            if (letters <= INT8_MAX) {
+                menu.setPos(menu.markerSize + letters + menu.isActive());
+                return true;
+            }
         }
 #endif
 
@@ -1043,7 +1423,7 @@ class Builder {
 #ifndef GM_NO_PART
         if (_action != Action::Refresh && menu.usePart()) {
             if (menu.prevLen >= 0) menu.setPos(menu.cols - (menu.prevLen > width ? menu.prevLen : width));
-            menu.prevLen = width;
+            menu.prevLen = width <= INT8_MAX ? width : -1;
         }
 #endif
 
@@ -1061,6 +1441,24 @@ class Builder {
     uint8_t nextId() {
         return _nextPageId++;
     }
+
+    // открыть страницу и установить выбранный виджет
+    bool openPage(uint8_t id, uint8_t chosen = 0) {
+        if (!menu.pages.open(id)) return false;
+        menu.setChosenID(chosen);
+        menu.resetPart();
+        menu.len = menu.chosenID();  // checkOverflow ещё видит длину старой страницы
+        refresh();
+        return true;
+    }
+
+    // закрыть текущую страницу
+    void closePage() {
+        menu.pages.close();
+        menu.resetPart();
+        menu.len = menu.chosenID();  // checkOverflow ещё видит длину закрытой страницы
+        refresh();
+    }
 #endif
 
     // низкоуровневый API меню для своих виджетов
@@ -1070,13 +1468,131 @@ class Builder {
    private:
     const void* _targetVar = nullptr;
     Action _action;
-    int8_t _targetRow;  // -1: нет привязки к строке
+    uint8_t _targetRow;  // UINT8_MAX: нет привязки к строке
+    bool _refresh = false;
+    bool _changed = false;
+#ifndef GM_NO_POPUP
+    bool _popupPass = false;
+    bool _popupSeen = false;
+    bool _popupOpened = false;
+#endif
 #ifndef GM_NO_PAGES
     uint8_t _nextPageId;
     bool _achieved = false;
 #endif
-    bool _refresh = false;
-    bool _changed = false;
+
+#ifndef GM_NO_POPUP
+    // вывести строку по центру, длинную строку обрезать справа
+    void _popupText(const char* str) {
+        uint8_t letters;
+        uint8_t len = gmutil::strlenU(str, &letters);
+        uint8_t col = letters < menu.cols ? (menu.cols - letters) / 2 : 0;
+        menu.pad(col);
+        if (str[len]) menu.print(str);
+        else menu.print(str, len, letters);
+    }
+
+    // вывести одну кнопку по центру
+    void _popupButton(const char* str, uint8_t len, uint8_t letters) {
+        uint16_t width = (uint16_t)letters + 1;
+        uint8_t col = width < menu.cols ? (menu.cols - width) / 2 : 0;
+        menu.pad(col);
+        menu.print(menu.marker);
+        menu.print(str, len, letters);
+    }
+
+    // вывести кнопки popup в текущую строку
+    void _popupButtons(const char* buttons, bool confirm) {
+        const char* first;
+        uint8_t firstLen = gmutil::getSub(buttons, ';', 0, &first);
+        uint8_t firstLetters;
+        gmutil::strlenU(first, &firstLetters, firstLen);
+
+        if (!confirm) {
+            _popupButton(first, firstLen, firstLetters);
+            return;
+        }
+
+        const char* second;
+        uint8_t secondLen = gmutil::getSub(buttons, ';', 1, &second);
+        uint8_t secondLetters;
+        gmutil::strlenU(second, &secondLetters, secondLen);
+        uint16_t width = (uint16_t)firstLetters + secondLetters + 4;
+
+        if (width > menu.cols) {
+            if (menu.popup.selected) _popupButton(second, secondLen, secondLetters);
+            else _popupButton(first, firstLen, firstLetters);
+            return;
+        }
+
+        menu.pad((menu.cols - width) / 2);
+        menu.print(menu.popup.selected ? ' ' : menu.marker);
+        menu.print(first, firstLen, firstLetters);
+        menu.print("  ", 2);
+        menu.print(menu.popup.selected ? menu.marker : ' ');
+        menu.print(second, secondLen, secondLetters);
+    }
+
+    // вывести popup сразу готовыми строками без отдельной очистки экрана
+    void _renderPopup(const char* title, const char* buttons, bool confirm) {
+        if (!menu.rows) return;
+        uint8_t buttonRow = menu.rows == 1 ? 0 : (menu.rows - 2) / 2 + 1;
+
+        for (uint8_t row = 0; row < menu.rows; ++row) {
+            if (menu.state) {
+                menu.setPos(0, row);
+                menu.state(row, false, false);
+            }
+            menu.setPos(0, row);
+
+            if (menu.rows > 1 && row == buttonRow - 1) {
+                _popupText(title);
+            } else if (row == buttonRow) {
+                _popupButtons(buttons, confirm);
+            }
+            menu.padEnd();
+        }
+    }
+
+    int8_t _popup(uint8_t id, const char* title, const char* buttons, bool confirm) {
+        if (!_popupPass || menu.popup.id != id) return PopupNone;
+        _popupSeen = true;
+        if (_popupOpened) return PopupNone;
+
+        switch (_action) {
+            case Action::Refresh:
+                _renderPopup(title, buttons, confirm);
+                break;
+
+            case Action::Set: {
+                int8_t result = confirm ? menu.popup.selected : 0;
+                menu.popup.close();
+                menu.resetPart();
+                refresh();
+                return result;
+            }
+
+            case Action::SetUp:
+            case Action::Left:
+                if (confirm && menu.popup.selected) {
+                    menu.popup.selected = 0;
+                    refresh();
+                }
+                break;
+
+            case Action::SetDown:
+            case Action::Right:
+                if (confirm && !menu.popup.selected) {
+                    menu.popup.selected = 1;
+                    refresh();
+                }
+                break;
+
+            default: break;
+        }
+        return PopupNone;
+    }
+#endif
 
     // найти ближайший доступный пункт Select без изменения исходного индекса
     static bool _selectFind(const char* opts, uint8_t current, bool forward, uint8_t& result) {
@@ -1112,9 +1628,21 @@ class Builder {
         return v < minv ? maxv : (v > maxv ? minv : v);
     }
 
+    // расстояние между упорядоченными int32 без знакового переполнения
+    static bool _closerThanStep(int32_t high, int32_t low, int32_t step) {
+        return (uint32_t)high - (uint32_t)low < (uint32_t)step;
+    }
+
+    static bool _closerThanStep(float high, float low, float step) {
+        return high - low < step;
+    }
+
     // относится ли текущий проход к зарегистрированному виджету
     bool _reachable() {
         if (_action == Action::None) return false;
+#ifndef GM_NO_POPUP
+        if (_popupPass) return false;
+#endif
         if (_action == Action::Refresh) return menu.isVisible();
         return menu.isChosen();
     }
@@ -1145,6 +1673,10 @@ class Builder {
     // сбросить состояние перед новым проходом билдера
     void _init() {
         _refresh = _changed = false;
+#ifndef GM_NO_POPUP
+        _popupPass = menu.isPopup();
+        _popupSeen = _popupOpened = false;
+#endif
 #ifndef GM_NO_PAGES
         _achieved = menu.openRoot();
         _nextPageId = 1;
@@ -1152,7 +1684,7 @@ class Builder {
         menu.openRoot();
 #endif
         _targetVar = nullptr;
-        _targetRow = -1;
+        _targetRow = UINT8_MAX;
     }
 
     // выполнить пользовательский билдер и проверить состояние навигации
@@ -1160,6 +1692,13 @@ class Builder {
         cb(*this);
 
         ++menu.len;
+
+#ifndef GM_NO_POPUP
+        if (_popupPass && !_popupSeen) {
+            menu.popup.close();
+            _refresh = true;
+        }
+#endif
 
 #ifndef GM_NO_PAGES
         if (!_achieved) {
@@ -1196,16 +1735,7 @@ class Builder {
         menu.print(unit, ulen);
     }
 
-// MARK: _editNum
-#ifdef ARDUINO
-    template <typename T>
-    bool _editNum(const __FlashStringHelper* label, T* var, T minv, T maxv, T step, uint8_t dec_base, const __FlashStringHelper* unit, void (*cb)(T v) = nullptr) {
-        GM_READ_PGM(label, label_s);
-        GM_READ_PGM(unit, unit_s);
-        return _editNum<T>(label_s, var, minv, maxv, step, dec_base, unit_s, cb);
-    }
-#endif
-
+    // MARK: _editNum
     template <typename T>
     bool _editNum(const char* label, T* var, T minv, T maxv, T step, uint8_t dec_base, const char* unit = "", void (*cb)(T v) = nullptr, const void* targetVar = nullptr) {
         if (!beginWidget()) return false;
@@ -1225,8 +1755,7 @@ class Builder {
             case Action::SetUp:
             case Action::Right:
                 if (step > 0 && *var < maxv) {
-                    T delta = maxv - *var;
-                    *var = (delta < step) ? maxv : *var + step;
+                    *var = _closerThanStep(maxv, *var, step) ? maxv : *var + step;
                     render = changed = true;
                     change();
                 }
@@ -1235,8 +1764,7 @@ class Builder {
             case Action::SetDown:
             case Action::Left:
                 if (step > 0 && *var > minv) {
-                    T delta = *var - minv;
-                    *var = (delta < step) ? minv : *var - step;
+                    *var = _closerThanStep(*var, minv, step) ? minv : *var - step;
                     render = changed = true;
                     change();
                 }
@@ -1255,6 +1783,7 @@ class Builder {
     bool _editText(const char* label, char* var, uint8_t maxLen, const char* alphabet, void (*cb)(const char* str)) {
         if (!beginWidget()) return false;
         if (!maxLen || !alphabet) return false;
+        if (maxLen == UINT8_MAX) --maxLen;
 
         uint8_t len = 0;
         while (len < maxLen && var[len]) ++len;

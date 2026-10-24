@@ -6,13 +6,13 @@ class GyverMenu {
     // столбцов (длина строки), строк
     GyverMenu(uint8_t cols, uint8_t rows) {
         _menu.cols = cols;
-        _menu.rows = rows;
+        _menu.rows = rows ? rows : 1;
     }
 
     // изменить размер меню и вернуться в корень
     void resize(uint8_t cols, uint8_t rows) {
         _menu.cols = cols;
-        _menu.rows = rows;
+        _menu.rows = rows ? rows : 1;
         _menu.home();
     }
 
@@ -48,6 +48,9 @@ class GyverMenu {
 
     // обновить строку с переменной
     void update(const void* var) {
+#ifndef GM_NO_POPUP
+        if (_menu.isPopup()) return;
+#endif
         if (_build_cb) gm::Builder(_menu).buildUpdate(_build_cb, var);
     }
 
@@ -58,12 +61,18 @@ class GyverMenu {
 
     // на предыдущее меню
     void back() {
+#ifndef GM_NO_POPUP
+        if (_menu.isPopup()) return;
+#endif
         _menu.back();
         refresh();
     }
 
     // в главное меню
     void home() {
+#ifndef GM_NO_POPUP
+        if (_menu.isPopup()) return;
+#endif
         _menu.home();
         refresh();
     }
@@ -126,6 +135,9 @@ class GyverMenu {
 
     // выйти из режима редактирования и обновить экран
     void cancelEdit() {
+#ifndef GM_NO_POPUP
+        if (_menu.isPopup()) return;
+#endif
         if (!_menu.active || !_build_cb) return;
         _menu.active = 0;
 
@@ -168,6 +180,35 @@ class GyverMenu {
         return _menu.chosenID();
     }
 
+#ifndef GM_NO_POPUP
+    // открыть popup из внешнего кода. id 0 зарезервирован
+    bool openPopup(uint8_t id, uint8_t selected = 0) {
+        bool alreadyOpen = _menu.popup.id == id;
+        if (!_build_cb || !_menu.popup.open(id, selected)) return false;
+        if (alreadyOpen) return true;
+        _menu.resetPart();
+        refresh();
+        return true;
+    }
+
+    // закрыть popup без результата
+    bool closePopup() {
+        if (!_menu.isPopup()) return false;
+        _menu.popup.close();
+        _menu.resetPart();
+        refresh();
+        return true;
+    }
+
+    bool isPopup() const {
+        return _menu.isPopup();
+    }
+
+    uint8_t popupID() const {
+        return _menu.popupID();
+    }
+#endif
+
     // MARK: private
    private:
     gm::Menu _menu;
@@ -186,6 +227,13 @@ class GyverMenu {
     // переместить выбранную строку и обновить экран по текущему режиму
     void _scroll(bool up) {
         if (!_build_cb) return;
+
+#ifndef GM_NO_POPUP
+        if (_menu.isPopup()) {
+            _action(up ? gm::Builder::Action::SetUp : gm::Builder::Action::SetDown);
+            return;
+        }
+#endif
 
         uint8_t prow = _menu.row();
 

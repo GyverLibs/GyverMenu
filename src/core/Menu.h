@@ -5,6 +5,10 @@
 #define GM_MAX_DEPTH 5
 #endif
 
+#if !defined(GM_NO_PAGES) && GM_MAX_DEPTH < 1
+#error "GM_MAX_DEPTH must be at least 1"
+#endif
+
 namespace gm {
 
 enum class RefreshMode : uint8_t {
@@ -55,6 +59,7 @@ class Menu {
     void print(const char* str) {
         uint8_t letters;
         uint8_t len = gmutil::strlenU(str, &letters);
+        if (str[len]) reserveEllipsis();
         print(str, len, letters);
     }
 
@@ -75,7 +80,7 @@ class Menu {
     }
 
     // заполнить пробелами от начала
-    void pad(int8_t n) {
+    void pad(int16_t n) {
         if (n < 0) return;
         if (n > left) n = left;
         left -= n;
@@ -84,8 +89,8 @@ class Menu {
     }
 
     // заполнить пробелами от конца
-    void padEnd(int8_t n = 0) {
-        pad(left - n);
+    void padEnd(int16_t n = 0) {
+        pad(n < left ? left - n : 0);
     }
 
     // переключить активное состояние (isActive)
@@ -114,6 +119,18 @@ class Menu {
         return len >= scroll() && len < scroll() + rows;
     }
 
+#ifndef GM_NO_POPUP
+    // открыто модальное окно
+    bool isPopup() const {
+        return popup.id;
+    }
+
+    // id открытого модального окна, 0 если закрыто
+    uint8_t popupID() const {
+        return popup.id;
+    }
+#endif
+
     // порядковый номер текущего виджета
     uint8_t currentID() {
         return len;
@@ -124,9 +141,19 @@ class Menu {
         return scroll() + row();
     }
 
+    // установить выбранный виджет и показать его на экране
+    void setChosenID(uint8_t id) {
+        scroll() = id < rows ? 0 : id - rows + 1;
+        row() = id - scroll();
+    }
+
     // id текущей страницы
     uint8_t pageID() {
+#ifndef GM_NO_PAGES
         return pages.current().id;
+#else
+        return 0;
+#endif
     }
 
     // =====================================================
@@ -144,15 +171,30 @@ class Menu {
     const char* backSign = "Back";
     RefreshMode updateMode = RefreshMode::Row;
     char marker = '>';
-    int8_t left = 0;
+    uint8_t left = 0;
     uint8_t cols, rows;
     uint8_t len = 0;
     uint8_t active = 0;
     bool markerSize = true;
-#ifndef GM_NO_PART
     int8_t prevLen = -1;
-#else
-    uint8_t _ellipsis = 0;
+
+#ifndef GM_NO_POPUP
+    struct PopupState {
+        uint8_t id = 0;
+        uint8_t selected = 0;
+
+        bool open(uint8_t popupID, uint8_t choice = 0) {
+            if (!popupID) return false;
+            if (id == popupID) return true;
+            id = popupID;
+            selected = choice ? 1 : 0;
+            return true;
+        }
+
+        void close() {
+            id = 0;
+        }
+    } popup;
 #endif
 
 #ifndef GM_NO_PAGES
@@ -337,9 +379,7 @@ class Menu {
 
     // сбросить контекст частичного рендера
     void resetPart() {
-#ifndef GM_NO_PART
         prevLen = -1;
-#endif
     }
 
     // включён ли полный рендер экрана
@@ -350,11 +390,7 @@ class Menu {
     // зарезервировать конец текущей области под признак обрезки
     void reserveEllipsis() {
         uint8_t ellipsis = left > 2 ? 2 : left;
-#ifndef GM_NO_PART
         prevLen = -1 - ellipsis;
-#else
-        _ellipsis = ellipsis;
-#endif
     }
 
     // допечатать зарезервированный признак обрезки
@@ -369,19 +405,11 @@ class Menu {
     }
 
     uint8_t _ellipsisSize() {
-#ifndef GM_NO_PART
         return prevLen < -1 ? -prevLen - 1 : 0;
-#else
-        return _ellipsis;
-#endif
     }
 
     void _clearEllipsis() {
-#ifndef GM_NO_PART
         if (prevLen < -1) prevLen = -1;
-#else
-        _ellipsis = 0;
-#endif
     }
 
     // вызвать onPrint(0)

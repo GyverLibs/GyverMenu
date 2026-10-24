@@ -105,6 +105,16 @@ uint8_t getWidgetIndex();
 // editing mode
 bool isEditing();
 void cancelEdit();
+
+// current page and selected widget
+uint8_t pageID();
+uint8_t chosenID();
+
+// modal popup from external code
+bool openPopup(uint8_t id, uint8_t selected = 0);
+bool closePopup();              // close without a result
+bool isPopup() const;
+uint8_t popupID() const;        // 0 when closed
 ```
 
 ### gm::Builder
@@ -126,6 +136,22 @@ template <typename PageCb>
 void Page(uint8_t id, Str label, const PageCb& page, bool back = true);
 ```
 
+#### Popup
+```cpp
+// modal popup declarations. id must be non-zero and unique
+bool Alert(uint8_t id, Str title, Str button = "OK", void (*cb)() = nullptr);
+bool Alert(uint8_t id, Str title, void (*cb)());  // "OK" button
+int8_t Confirm(uint8_t id, Str title, Str buttons, void (*cb)(bool result) = nullptr);
+
+// open/close a popup from the builder
+bool openPopup(uint8_t id, uint8_t selected = 0);
+bool closePopup();
+bool isPopup() const;
+uint8_t popupID() const;
+```
+
+`Alert` returns `true` once when Set is pressed. `Confirm` accepts two `;`-separated buttons and returns `gm::PopupNone` (-1) until a choice is made, then returns 0 or 1 once. The optional callback runs only on confirmation: `Alert` calls `void()`, while `Confirm` passes `false` for the first and `true` for the second button. External `closePopup()` does not invoke it. Left/Up select the first option, Right/Down select the second, and Set confirms. A popup blocks the rest of the menu and restores the previous page, cursor and editing state after closing.
+
 #### Widgets
 ```cpp
 // button
@@ -138,12 +164,23 @@ void Label(Str line);
 void ValueText(Str label, const char* var);
 void ValueInt(Str label, const T* var, uint8_t base = 10, Str unit = "");
 void ValueFloat(Str label, const float* var, uint8_t dec = 2, Str unit = "");
+void ValueNumber(Str label, const T* var, uint8_t base = 10, Str unit = "");
+void ValueNumber(Str label, const float* var, uint8_t dec = 2, Str unit = "");
 
 // switcher
 bool Switch(Str label, bool* var, void (*cb)(bool v) = nullptr);
 
-// selection that preserves indexes and skips items beginning with '~'
+// selection
 bool Select(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+
+// selection that preserves indexes and skips items beginning with '~'
+bool SelectEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+
+// select an item on a separate page. Set/Right saves, Left cancels
+bool SelectPage(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+
+// SelectPage that preserves source indexes and skips items beginning with '~'
+bool SelectPageEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
 // Selection of the item in the style of "tabs". tabs - a line with a separator ';'
 bool Tabs(uint8_t* var, Str tabs, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
@@ -154,6 +191,10 @@ bool Int(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T 
 
 // float-value
 bool Float(Str label, float* var, float minv, float maxv, float step, uint8_t dec = 2, Str unit = "", void (*cb)(float v) = nullptr);
+
+// automatically select Int or Float from the variable type
+bool Number(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T v) = nullptr);
+bool Number(Str label, float* var, float minv, float maxv, float step, uint8_t dec, Str unit = "", void (*cb)(float v) = nullptr);
 
 // editing a line from an embedded or user alphabet
 // var buffer must have a minimum size of maxLen + 1
@@ -215,6 +256,10 @@ void change();
 // Get a new id for Page
 uint8_t nextId();
 
+// open/close a page. chosen is the initially selected widget
+bool openPage(uint8_t id, uint8_t chosen = 0);
+void closePage();
+
 // A low-level menu item is available as b.menu
 Menu& menu;
 ```
@@ -229,8 +274,8 @@ void menu.printDec2z(uint8_t v);   // 2 digits with lead zero
 void menu.printDec4z(uint16_t v);  // 4 digits with leading zeros
 
 // filling-in
-void menu.pad(int8_t n);
-void menu.padEnd(int8_t n = 0);
+void menu.pad(int16_t n);
+void menu.padEnd(int16_t n = 0);
 
 // set the withdrawal position. Need onCursor()
 bool menu.setPos(uint8_t col);
@@ -242,6 +287,7 @@ uint8_t menu.currentRow();
 bool menu.isActive();
 bool menu.isChosen();
 bool menu.isVisible();
+void menu.setChosenID(uint8_t id);
 ```
 
 ### Define settings
@@ -251,6 +297,7 @@ Announced before connecting the library
 #define GM_MAX_DEPTH 5  // max. the nesting of the menu (no. 5)
 #define GM_NO_PAGES     // Disable the attached menu (facilitates the library)
 #define GM_NO_PART      // disable partial output of values in Part (facilitates the library)
+#define GM_NO_POPUP     // disable modal popups (facilitates the library)
 ```
 
 <a id="usage"></a>
@@ -528,7 +575,8 @@ menu.onBuild([](gm::Builder& b) {
 
 ### Limitations and features
 - If a string does not fit into the available area, its beginning is preserved and the last one or two columns contain `.` or `..`.
-- `Int`inside working`int32_t`a value, so you cannot edit a number greater than ~2.1 million
+  - `Int` internally uses the `int32_t` range (approximately ±2.1 billion); limits must fit the variable type.
+- Menu dimensions are stored as `uint8_t`: up to 255 columns and rows. A zero row count is automatically changed to 1.
 - The builder is declarative and can be called several times per user action. Do not perform delays, network requests and other heavy work.
 - The order of widgets determines their indexes and navigation. If the condition changes the set of widgets, after changing the structure, you need to`b.refresh()`
 - `menu.update(ptr)`Find the widget by the pointer transmitted to it`beginRender`. For a predictable update, use a unique variable for the updated widget.
@@ -537,16 +585,20 @@ menu.onBuild([](gm::Builder& b) {
 - For right alignment, call `prepareRight(width)` with the actual output width. If there is not enough room, the following output is truncated and ends with `..`.
 - `markerSize`is equal to one column by default. For renderer without a separate cursor symbol, call`setMarkerSize(false)`
 - `Time`The structure must have fields`hour`, `minute`, `second`, `Date` - `day`, `month`, `year`
-- `Bitmask`: `bits`limited by the size of the variable type
+- `Bitmask` accepts an integer variable; unsigned types are preferred. `bits` is limited to the type width.
 - `GM_NO_PAGES`Disables pages and reduces library size
 - `GM_NO_PART`Disables partial output of the variable widget area. Quick update of the marker when navigating in mode`Part`persistence
+- In `Part` mode, variable-area widths up to 127 are cached for the next partial update; wider areas are rendered correctly by redrawing the whole row.
 - After resizing the display`resize(cols, rows)`drops navigation to the root
+  - Subitems and widget counts use 8-bit lengths and indexes and must fit within 255. Longer C strings are truncated correctly when rendered.
+- `F()` overloads temporarily copy strings to the stack; avoid very long lists there.
 
 ### Introduction of text
 widget`Text`works as follows:
 - `Text`The library uses a standard alphabet: 0-9 A-Z a-z characters. You can transfer the external alphabet.
 - `TextASCII`"lighter" and uses a blank ASCII table, no alphabet storage
 - The buffer must have a minimum size.`maxLen + 1`final`\0`
+- The maximum `maxLen` is 254; a value of 255 is clamped to 254.
 - The length of the line can be changed only on the right - you need to put the cursor on the last position, behind the line:`foo>`. If you press "down" - the line will be shortened by one character, if "up" - a new character will be added in front of the cursor.
 
 #### Tricks.

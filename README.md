@@ -109,6 +109,12 @@ uint8_t pageID();
 
 // порядковый номер выбранного виджета
 uint8_t chosenID();
+
+// модальное окно из внешнего кода
+bool openPopup(uint8_t id, uint8_t selected = 0);
+bool closePopup();              // закрыть без результата
+bool isPopup() const;
+uint8_t popupID() const;        // 0 если закрыто
 ```
 
 ### gm::Builder
@@ -130,6 +136,22 @@ template <typename PageCb>
 void Page(uint8_t id, Str label, const PageCb& page, bool back = true);
 ```
 
+#### Popup
+```cpp
+// декларации модальных окон. id должен быть ненулевым и уникальным
+bool Alert(uint8_t id, Str title, Str button = "OK", void (*cb)() = nullptr);
+bool Alert(uint8_t id, Str title, void (*cb)());  // кнопка "OK"
+int8_t Confirm(uint8_t id, Str title, Str buttons, void (*cb)(bool result) = nullptr);
+
+// открыть/закрыть окно из билдера
+bool openPopup(uint8_t id, uint8_t selected = 0);
+bool closePopup();
+bool isPopup() const;
+uint8_t popupID() const;
+```
+
+`Alert` возвращает `true` один раз при нажатии Set. `Confirm` принимает две кнопки через `;` и возвращает `gm::PopupNone` (-1), пока выбора нет, затем один раз 0 или 1. Необязательный callback вызывается только при подтверждении: `Alert` вызывает `void()`, `Confirm` передаёт `false` для первой и `true` для второй кнопки. Внешний `closePopup()` callback не вызывает. Left/Up выбирают первый вариант, Right/Down - второй, Set подтверждает. Popup блокирует остальное меню, а после закрытия восстанавливает прежнюю страницу, курсор и режим редактирования.
+
 #### Виджеты
 ```cpp
 // кнопка
@@ -142,12 +164,23 @@ void Label(Str line);
 void ValueText(Str label, const char* var);
 void ValueInt(Str label, const T* var, uint8_t base = 10, Str unit = "");
 void ValueFloat(Str label, const float* var, uint8_t dec = 2, Str unit = "");
+void ValueNumber(Str label, const T* var, uint8_t base = 10, Str unit = "");
+void ValueNumber(Str label, const float* var, uint8_t dec = 2, Str unit = "");
 
 // выключатель
 bool Switch(Str label, bool* var, void (*cb)(bool v) = nullptr);
 
-// выбор с сохранением индексов и пропуском пунктов, начинающихся с '~'
+// выбор
 bool Select(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+
+// выбор с сохранением индексов и пропуском пунктов, начинающихся с '~'
+bool SelectEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+
+// выбор пункта на отдельной странице. Set/Right - сохранить, Left - отменить
+bool SelectPage(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
+
+// SelectPage с сохранением индексов и пропуском пунктов, начинающихся с '~'
+bool SelectPageEx(Str label, uint8_t* var, Str opts, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
 
 // выбор пункта в стиле "вкладок". tabs - строка с разделителем ';'
 bool Tabs(uint8_t* var, Str tabs, void (*cb)(uint8_t n, const char* str, uint8_t len) = nullptr);
@@ -158,6 +191,10 @@ bool Int(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T 
 
 // редактируемое float значение
 bool Float(Str label, float* var, float minv, float maxv, float step, uint8_t dec = 2, Str unit = "", void (*cb)(float v) = nullptr);
+
+// автоматический выбор Int или Float по типу переменной
+bool Number(Str label, T* var, T minv, T maxv, T step, Str unit = "", void (*cb)(T v) = nullptr);
+bool Number(Str label, float* var, float minv, float maxv, float step, uint8_t dec, Str unit = "", void (*cb)(float v) = nullptr);
 
 // редактирование строки из встроенного или пользовательского алфавита
 // буфер var должен иметь размер минимум maxLen + 1
@@ -219,6 +256,10 @@ void change();
 // получить новый id для Page
 uint8_t nextId();
 
+// открыть/закрыть страницу. chosen - начальный выбранный виджет
+bool openPage(uint8_t id, uint8_t chosen = 0);
+void closePage();
+
 // объект низкоуровневого меню доступен как b.menu
 Menu& menu;
 ```
@@ -233,8 +274,8 @@ void menu.printDec2z(uint8_t v);   // 2 цифры с ведущим нулём
 void menu.printDec4z(uint16_t v);  // 4 цифры с ведущими нулями
 
 // заполнение пробелами
-void menu.pad(int8_t n);
-void menu.padEnd(int8_t n = 0);
+void menu.pad(int16_t n);
+void menu.padEnd(int16_t n = 0);
 
 // установить позицию вывода. Нужен onCursor()
 bool menu.setPos(uint8_t col);
@@ -246,6 +287,7 @@ uint8_t menu.currentRow();
 bool menu.isActive();
 bool menu.isChosen();
 bool menu.isVisible();
+void menu.setChosenID(uint8_t id);
 ```
 
 ### Дефайны настроек
@@ -255,6 +297,7 @@ bool menu.isVisible();
 #define GM_MAX_DEPTH 5  // макс. вложенность меню (умолч. 5)
 #define GM_NO_PAGES     // отключить вложенные меню (облегчает библиотеку)
 #define GM_NO_PART      // отключить частичный вывод значений в Part (облегчает библиотеку)
+#define GM_NO_POPUP     // отключить модальные окна (облегчает библиотеку)
 ```
 
 <a id="usage"></a>
@@ -539,7 +582,8 @@ menu.onBuild([](gm::Builder& b) {
 
 ### Ограничения и особенности
 - Если строка не вмещается в доступную область, её начало сохраняется, а последние один-два столбца занимают `.` или `..`
-- `Int` внутри работает с `int32_t` значением, поэтому нельзя редактировать числа больше ~2.1 миллиона
+- `Int` внутри работает с диапазоном `int32_t` (примерно ±2.1 миллиарда); границы должны помещаться в тип переменной
+- Размеры меню хранятся в `uint8_t`: до 255 столбцов и строк. Нулевое количество строк автоматически заменяется на 1
 - Билдер является декларативным и может вызываться несколько раз на одно пользовательское действие. Не выполняйте в нём задержки, сетевые запросы и другую тяжёлую работу
 - Порядок виджетов определяет их индексы и навигацию. Если условие меняет набор виджетов, после изменения структуры нужен `b.refresh()`
 - `menu.update(ptr)` находит виджет по указателю, переданному в его `beginRender`. Для предсказуемого обновления используйте уникальную переменную для обновляемого виджета
@@ -548,16 +592,20 @@ menu.onBuild([](gm::Builder& b) {
 - Для правого выравнивания вызывайте `prepareRight(width)` с актуальной шириной выводимой области. При нехватке места последующий вывод будет обрезан с `..`
 - `markerSize` равен одному столбцу по умолчанию. Для renderer без отдельного символа курсора вызовите `setMarkerSize(false)`
 - `Time`: структура должна иметь поля `hour`, `minute`, `second`, `Date` - `day`, `month`, `year`
-- `Bitmask`: `bits` ограничивается размером типа переменной
+- `Bitmask` принимает целочисленную переменную; предпочтительны беззнаковые типы. `bits` ограничивается размером типа
 - `GM_NO_PAGES` отключает страницы и уменьшает размер библиотеки
 - `GM_NO_PART` отключает частичный вывод изменяемой области виджетов. Быстрое обновление маркера при навигации в режиме `Part` сохраняется
+- В режиме `Part` ширина изменяемой области до 127 запоминается для следующего частичного обновления - при большей ширине строка корректно перерисовывается целиком
 - После изменения размеров дисплея `resize(cols, rows)` сбрасывает навигацию в корень
+- Подпункты и количество виджетов используют 8-битные длины и индексы и должны укладываться в 255. Более длинные C-строки обрезаются
+- Перегрузки с `F()` временно копируют строку в стек - не используйте в них очень длинные списки
 
 ### Ввод текста
 Виджет `Text` работает следующим образом:
 - `Text` использует стандартный алфавит библиотеки: 0-9 A-Z a-z символы. Можно передать внешний алфавит
 - `TextASCII` "легче" и использует чистую таблицу ASCII, без хранения алфавита
 - Буфер должен иметь размер минимум `maxLen + 1` для завершающего `\0`
+- Максимальный `maxLen` равен 254, значение 255 автоматически ограничивается до 254
 - Длину строки можно менять только справа - нужно поставить курсор на последнюю позицию, за строку: `foo>`. Если нажать "вниз" - строка укоротится на один символ, если "вверх" - будет добавлен новый символ перед курсором
 
 #### Трюки

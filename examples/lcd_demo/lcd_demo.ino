@@ -43,7 +43,13 @@ gm::Time time;
 gm::Date date;
 uint8_t flags = 0b00111;
 
+enum : uint8_t {
+    PopupAlert = 1,
+    PopupConfirm,
+};
+
 void setup() {
+    Serial.begin(9600);
     lcd.init();
     lcd.backlight();
 
@@ -58,7 +64,18 @@ void setup() {
     });
 
     menu.onBuild([](gm::Builder& b) {
+        b.Alert(PopupAlert, "Settings saved", []() {
+            Serial.println("alert closed");
+        });
+
+        b.Confirm(PopupConfirm, "Reset settings?", "No;Yes", [](bool answer) {
+            Serial.print("confirm: ");
+            Serial.println(answer);  // false - No, true - Yes
+        });
+
         b.Button("Button", []() { Serial.println("click!"); });
+        if (b.Button("Show alert")) b.openPopup(PopupAlert);
+        if (b.Button("Ask confirm")) b.openPopup(PopupConfirm);
         b.Switch("Switch", &sw, [](bool v) { Serial.println(v); });
         b.ValueText("ValueText", "foo");
         b.ValueInt("ValueInt", &vali);
@@ -73,6 +90,10 @@ void setup() {
         b.Date("Date", &date);
         b.Bitmask("Flags", &flags, 5);
     });
+
+    // Всплывающим окном можно управлять вне билдера:
+    // menu.openPopup(PopupAlert);
+    // menu.closePopup();
 
     menu.refresh();
 }
