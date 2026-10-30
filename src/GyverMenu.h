@@ -180,6 +180,11 @@ class GyverMenu {
         return _menu.chosenID();
     }
 
+    // открыт корень меню
+    bool isHome() {
+        return _menu.isHome();
+    }
+
 #ifndef GM_NO_POPUP
     // открыть popup из внешнего кода. id 0 зарезервирован
     bool openPopup(uint8_t id, uint8_t selected = 0) {

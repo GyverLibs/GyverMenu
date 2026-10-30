@@ -85,6 +85,9 @@ void back();
 // в главное меню
 void home();
 
+// открыт корень меню
+bool isHome();
+
 // кнопки управления
 void set();
 void up();
