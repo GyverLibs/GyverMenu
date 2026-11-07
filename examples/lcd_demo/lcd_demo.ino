@@ -39,8 +39,8 @@ int vali;
 float valf;
 char editstr[9] = "Gyver";
 char editascii[9] = "Menu";
-gm::Time time;
-gm::Date date;
+gm::Time time1;
+gm::Date date1;
 uint8_t flags = 0b00111;
 
 enum : uint8_t {
@@ -86,8 +86,8 @@ void setup() {
         b.Float("Float", &valf, -5, 5, 0.25, 3, "mm", [](float v) { Serial.println(v); });
         b.Text("Text", editstr, 8);
         b.TextASCII("TextASCII", editascii, 8);
-        b.Time("Time", &time);
-        b.Date("Date", &date);
+        b.Time("Time", &time1);
+        b.Date("Date", &date1);
         b.Bitmask("Flags", &flags, 5);
     });
 
