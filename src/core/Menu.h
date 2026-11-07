@@ -158,7 +158,11 @@ class Menu {
 
     // открыт корень меню
     bool isHome() {
+#ifndef GM_NO_PAGES
         return pages.isRoot();
+#else
+        return 0;
+#endif
     }
 
     // =====================================================
